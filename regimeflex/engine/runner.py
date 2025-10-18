@@ -6,6 +6,7 @@ from typing import Dict, List
 from .identity import RegimeFlexIdentity as RF
 from .env import load_env
 from .config import Config
+from .killswitch import is_killed
 from .data import get_daily_bars
 from .risk import RiskConfig
 from .portfolio import compute_target_exposure, TargetExposure
@@ -31,6 +32,16 @@ def _intent_to_dict(it: OrderIntent) -> dict:
 
 def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trade_value: float = 200.0) -> Dict[str, any]:
     RF.print_log("RegimeFlex offline daily cycle starting", "INFO")
+
+    if is_killed():
+        RF.print_log("KILL-SWITCH active — aborting run before any actions", "RISK")
+        return {
+            "target": {"symbol": "NA", "direction": "FLAT", "dollars": 0.0, "shares": 0.0, "notes": "KILL"},
+            "positions_before": {},
+            "intents": [],
+            "positions_after": {},
+            "breadcrumbs": {"kill_switch": True}
+        }
 
     # Load env + config (keys not required in offline)
     env = load_env()
