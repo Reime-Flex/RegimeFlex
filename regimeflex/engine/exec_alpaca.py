@@ -1,33 +1,33 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
+import requests
 
 from .exec_planner import OrderIntent
 from .identity import RegimeFlexIdentity as RF
 
+ALPACA_PAPER_URL = "https://paper-api.alpaca.markets"
+ALPACA_LIVE_URL  = "https://api.alpaca.markets"
+
 @dataclass(frozen=True)
 class AlpacaCreds:
-    key: str | None
-    secret: str | None
-    base_url: str = "https://paper-api.alpaca.markets"  # default paper URL
+    key: Optional[str]
+    secret: Optional[str]
+    base_url: str = ALPACA_PAPER_URL  # paper by default
 
 def _alpaca_payload(intent: OrderIntent) -> Dict[str, Any]:
-    """
-    Translate an OrderIntent to Alpaca v2 order payload.
-    We use quantity in shares; 'time_in_force' maps to 'day' or 'cls'.
-    """
     side = intent.side.lower()        # buy|sell
-    tif  = intent.time_in_force.lower()  # day|cls
+    tif  = intent.time_in_force.lower()
     payload: Dict[str, Any] = {
         "symbol": intent.symbol,
         "qty": round(float(intent.qty), 6),
         "side": side,
         "time_in_force": "day" if tif == "day" else "cls",
-        "type": intent.order_type.lower(),  # limit|market|moc
+        "type": intent.order_type.lower(),
     }
     if intent.order_type.lower() == "limit":
         payload["limit_price"] = float(intent.limit_price) if intent.limit_price is not None else None
-    # For MOC, Alpaca expects type="market" + time_in_force="cls"
+    # MOC on Alpaca = market + time_in_force=cls
     if intent.order_type.lower() == "moc":
         payload["type"] = "market"
         payload["time_in_force"] = "cls"
@@ -41,12 +41,46 @@ class AlpacaExecutor:
     def build_payloads(self, intents: List[OrderIntent]) -> List[Dict[str, Any]]:
         return [_alpaca_payload(it) for it in intents]
 
+    def _headers(self) -> Dict[str, str]:
+        return {
+            "APCA-API-KEY-ID": self.creds.key or "",
+            "APCA-API-SECRET-KEY": self.creds.secret or "",
+            "Content-Type": "application/json"
+        }
+
     def place_orders(self, intents: List[OrderIntent]) -> List[Dict[str, Any]]:
         """
-        DRY-RUN: Do not call the API. Just format payloads and return them.
-        Later we'll add real POST /v2/orders with requests and auth headers.
+        If dry_run: just format and print payloads.
+        Else: POST to /v2/orders for each intent. Returns list of results (payload or API response).
         """
         payloads = self.build_payloads(intents)
+
+        if self.dry_run:
+            for p in payloads:
+                RF.print_log(f"[DRY-RUN] Alpaca payload → {p}", "INFO")
+            return payloads
+
+        # Safety: require creds
+        if not (self.creds.key and self.creds.secret):
+            RF.print_log("Alpaca creds missing — refusing to place orders.", "ERROR")
+            return []
+
+        results: List[Dict[str, Any]] = []
+        url = self.creds.base_url.rstrip("/") + "/v2/orders"
+        headers = self._headers()
+
         for p in payloads:
-            RF.print_log(f"[DRY-RUN] Alpaca payload → {p}", "INFO")
-        return payloads
+            try:
+                RF.print_log(f"[LIVE] POST {url} → {p}", "INFO")
+                r = requests.post(url, json=p, headers=headers, timeout=30)
+                if r.status_code >= 300:
+                    RF.print_log(f"Alpaca order error {r.status_code}: {r.text}", "ERROR")
+                    results.append({"error": r.text, "status": r.status_code, "request": p})
+                else:
+                    resp = r.json()
+                    results.append(resp)
+                    RF.print_log(f"[LIVE] Accepted order id={resp.get('id','?')} status={resp.get('status','?')}", "SUCCESS")
+            except Exception as e:
+                RF.print_log(f"Alpaca POST failed: {e}", "ERROR")
+                results.append({"error": str(e), "request": p})
+        return results
