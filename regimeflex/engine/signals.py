@@ -72,7 +72,12 @@ def trend_signal(qqq: pd.DataFrame, regime: RegimeState,
 
 def mr_signal(df: pd.DataFrame, regime: RegimeState,
               z_len: int = 20, vol_confirm_mult: float = 1.2,
-              time_stop_days_bull: int = 5, time_stop_days_bear: int = 3) -> MRSignal:
+              time_stop_days_bull: int = 5, time_stop_days_bear: int = 3,
+              z_entry_bull: float = -2.0,   # NEW
+              z_exit_bull: float = 0.0,     # NEW
+              z_entry_bear: float = 2.0,    # NEW
+              z_exit_bear: float = 0.0      # NEW
+) -> MRSignal:
     """
     Uses (close - SMA(20)) / rolling_std(20) with volume confirmation.
     Holding-day stop is enforced by the caller in live loop;
@@ -92,14 +97,14 @@ def mr_signal(df: pd.DataFrame, regime: RegimeState,
         return MRSignal(direction="FLAT", entry=False, exit=False, z=None, reason="Insufficient data")
 
     if regime.bull:
-        entry = (z < -2.0) and vol_conf
-        exit = (z > 0.0)
+        entry = (z < z_entry_bull) and vol_conf
+        exit = (z > z_exit_bull)
         direction = "LONG" if entry else ("FLAT" if not exit else "FLAT")
-        reason = "Bull regime: buy dips (z<-2), exit when z>0"
+        reason = "Bull regime: buy dips (z<thresh), exit when z>exit"
     else:
-        entry = (z > 2.0) and vol_conf
-        exit = (z < 0.0)
+        entry = (z > z_entry_bear) and vol_conf
+        exit = (z < z_exit_bear)
         direction = "SHORT" if entry else ("FLAT" if not exit else "FLAT")
-        reason = "Bear regime: short bounces (z>2), exit when z<0"
+        reason = "Bear regime: short bounces (z>thresh), exit when z<exit"
 
     return MRSignal(direction=direction, entry=bool(entry), exit=bool(exit), z=z, reason=reason)

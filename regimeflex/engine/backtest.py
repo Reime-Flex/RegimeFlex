@@ -26,6 +26,9 @@ class BTConfig:
     commission_per_share: float = 0.0     # e.g., 0.005
     fixed_fee_per_trade: float = 0.0      # e.g., 0.00
     slippage_bps: float = 10.0            # 10 bps = 0.10%
+    # NEW: strategy params (passed to signal functions)
+    trend_params: dict = None
+    mr_params: dict = None
 
 @dataclass(frozen=True)
 class BTResult:
@@ -52,6 +55,10 @@ def run_backtest(qqq: pd.DataFrame, psq: pd.DataFrame, cfg: BTConfig) -> BTResul
     idx = qqq.index.intersection(psq.index)
     qqq = qqq.loc[idx].copy()
     psq = psq.loc[idx].copy()
+    
+    # Extract strategy parameters
+    trend_kwargs = cfg.trend_params or {}
+    mr_kwargs = cfg.mr_params or {}
 
     cash = cfg.start_cash
     shares = 0.0
@@ -71,9 +78,9 @@ def run_backtest(qqq: pd.DataFrame, psq: pd.DataFrame, cfg: BTConfig) -> BTResul
         # 1) regime & signals using history up to today
         regime0 = detect_regime(q_hist["close"])
         regime = RegimeState(bull=regime0.bull, vix=cfg.vix_assumption, qqq_rvol_20=regime0.qqq_rvol_20)
-        t_sig = trend_signal(q_hist, regime)
+        t_sig = trend_signal(q_hist, regime, **trend_kwargs)
         act_df = q_hist if regime.bull else p_hist
-        m_sig = mr_signal(act_df, regime)
+        m_sig = mr_signal(act_df, regime, **mr_kwargs)
 
         # choose direction
         if t_sig.entry and not t_sig.exit:
