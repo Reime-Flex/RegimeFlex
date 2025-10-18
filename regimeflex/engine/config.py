@@ -7,6 +7,7 @@ class Config:
         self._strategies = None
         self._risk = None
         self._schedule = None
+        self._telemetry = None  # NEW
 
     def _load_yaml(self, rel_path: str):
         p = self.root / rel_path
@@ -32,3 +33,9 @@ class Config:
         if self._schedule is None:
             self._schedule = self._load_yaml("config/schedule.yaml")
         return self._schedule
+
+    @property
+    def telemetry(self):
+        if self._telemetry is None:
+            self._telemetry = self._load_yaml("config/telemetry.yaml")
+        return self._telemetry

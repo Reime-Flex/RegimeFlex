@@ -66,6 +66,14 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
     )
     RF.print_log(f"Target → {target.symbol} | {target.direction} | ${target.dollars:,.2f}", "INFO")
 
+    # Breadcrumbs for telemetry
+    crumbs = {
+        "vix": vix,
+        "fomc_blackout": is_fomc,
+        "opex": is_opex_day,
+        "target_notes": target.notes,
+    }
+
     # Positions (before)
     positions_before = load_positions()
     RF.print_log(f"Positions BEFORE: {positions_before}", "INFO")
@@ -90,6 +98,7 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
             "positions_before": positions_before,
             "intents": [],
             "positions_after": positions_before,
+            "breadcrumbs": crumbs,  # NEW
         }
 
     # Log PLAN records
@@ -120,4 +129,5 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         "positions_before": positions_before,
         "intents": [_intent_to_dict(it) for it in intents],
         "positions_after": positions_after,
+        "breadcrumbs": crumbs,  # NEW
     }

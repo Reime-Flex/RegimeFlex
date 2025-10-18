@@ -8,6 +8,7 @@ from engine.identity import RegimeFlexIdentity as RF
 from engine.runner import run_daily_offline
 from engine.env import load_env
 from engine.telemetry import Notifier, TGCreds
+from engine.config import Config
 
 if __name__ == "__main__":
     ap = ArgumentParser(description="RegimeFlex offline daily cycle")
@@ -30,6 +31,12 @@ if __name__ == "__main__":
     RF.print_log(f"Result summary: dir={result['target']['direction']} symbol={result['target']['symbol']}", "SUCCESS")
 
     # Send summary (dry-run if no creds)
-    e = load_env()
-    notifier = Notifier(TGCreds(token=e.telegram_bot_token, chat_id=e.telegram_chat_id))
-    notifier.send(Notifier.format_run_summary(result))
+    cfg = Config(".")
+    tele = cfg.telemetry or {}
+    if tele.get("enabled", True):
+        e = load_env()
+        notifier = Notifier(TGCreds(token=e.telegram_bot_token, chat_id=e.telegram_chat_id))
+        verbosity = tele.get("verbosity", "brief")
+        notifier.send(Notifier.format_run_summary(result, verbosity=verbosity))
+    else:
+        RF.print_log("Telemetry disabled by config/telemetry.yaml", "INFO")

@@ -1,0 +1,3 @@
+enabled: true            # set to false to silence notifications
+channel: "telegram"      # reserved (future: email/webhook)
+verbosity: "full"       # brief | full

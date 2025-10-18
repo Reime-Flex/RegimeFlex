@@ -43,7 +43,7 @@ class Notifier:
             RF.print_log(f"[TELEGRAM DRY-RUN]\n{text}", "INFO")
 
     @staticmethod
-    def format_run_summary(result: Dict[str, Any]) -> str:
+    def format_run_summary(result: Dict[str, Any], verbosity: str = "brief") -> str:
         t = result.get("target", {})
         dirn = t.get("direction", "FLAT")
         sym = t.get("symbol", "NA")
@@ -51,14 +51,28 @@ class Notifier:
         shares = t.get("shares", 0.0)
         intents = result.get("intents", [])
         after = result.get("positions_after", {})
+        bc = result.get("breadcrumbs", {}) or {}
         stamp = datetime.utcnow().strftime("%Y-%m-%d %H:%MZ")
 
-        lines = [
+        hdr = [
             f"*🎯 RegimeFlex Daily Summary*  `{stamp}`",
             "━━━━━━━━━━━━━━━━━━━━",
             f"*Target*: {dirn} `{sym}`",
             f"*Notional*: ${notional:,.2f}   *Shares*: {shares:,.2f}",
             f"*Planned Orders*: {len(intents)}",
-            f"*Positions After*: `{after}`",
         ]
-        return "\n".join(lines)
+
+        brief = [
+            f"*VIX*: {bc.get('vix','?')}",
+            f"*FOMC* blackout: {bc.get('fomc_blackout', False)}   *OPEX*: {bc.get('opex', False)}",
+        ]
+
+        if verbosity == "full":
+            brief.append(f"*Notes*: `{bc.get('target_notes','')}`")
+            brief.append(f"*Positions After*: `{after}`")
+        else:
+            # brief mode: include positions only if changed
+            if after:
+                brief.append(f"*Pos After*: `{after}`")
+
+        return "\n".join(hdr + brief)
