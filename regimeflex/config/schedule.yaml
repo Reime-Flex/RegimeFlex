@@ -1,0 +1,9 @@
+# When the daily runner should operate (UTC)
+daily_run_utc: "21:10"
+run_days: ["Mon","Tue","Wed","Thu","Fri"]
+no_trade_dates: []   # ISO dates like "2025-12-25"
+
+# NEW (optional overrides; ISO dates YYYY-MM-DD)
+fomc_dates: []      # e.g., ["2025-11-05","2025-12-17"]
+opex_overrides: []  # extra dates to treat as OPEX (if exchanges add quirks)
+fomc_blackout_window: [-1, 1]   # day before and day after

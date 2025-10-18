@@ -1,0 +1,21 @@
+# RegimeFlex strategies (non-leveraged)
+trend:
+  symbol: "QQQ"
+  entry: "Close > SMA(200) AND SMA(20) > SMA(50) AND SMA(5) > SMA(20)"
+  exit:  "Close < SMA(100) OR SMA(20) < SMA(50)"
+  regime_filter:
+    vix_max: 30
+    qqq_vol_50d_max: 0.40   # 40% annualized (approx)
+
+mean_reversion:
+  bull_symbol: "QQQ"
+  bear_symbol: "PSQ"        # inverse, non-leveraged
+  engine: "zscore"          # regime-adaptive
+  z_len: 20
+  z_entry_bull: -2.0
+  z_exit_bull: 0.0
+  z_entry_bear: 2.0
+  z_exit_bear: 0.0
+  vol_confirm_mult: 1.2     # volume > 1.2× 20-day avg
+  time_stop_days_bull: 5
+  time_stop_days_bear: 3

@@ -1,0 +1,123 @@
+from __future__ import annotations
+
+from dataclasses import asdict
+from typing import Dict, List
+
+from .identity import RegimeFlexIdentity as RF
+from .env import load_env
+from .config import Config
+from .data import get_daily_bars
+from .risk import RiskConfig
+from .portfolio import compute_target_exposure, TargetExposure
+from .exec_planner import plan_orders, OrderIntent
+from .exec_alpaca import AlpacaCreds, AlpacaExecutor
+from .positions import load_positions, save_positions
+from .fills import simulate_fills, apply_simulated_fills
+from .storage import ENSStyleAudit
+from .calendar import is_fomc_blackout, is_opex
+from datetime import date
+
+def _intent_to_dict(it: OrderIntent) -> dict:
+    return {
+        "symbol": it.symbol,
+        "side": it.side,
+        "qty": round(float(it.qty), 6),
+        "order_type": it.order_type,
+        "time_in_force": it.time_in_force,
+        "limit_price": None if it.limit_price is None else float(it.limit_price),
+        "reason": it.reason,
+    }
+
+def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trade_value: float = 200.0) -> Dict[str, any]:
+    RF.print_log("RegimeFlex offline daily cycle starting", "INFO")
+
+    # Load env + config (keys not required in offline)
+    env = load_env()
+    cfg = Config(".")
+    risk_cfg = RiskConfig()
+
+    # Calendar guard
+    sched = cfg.schedule or {}
+    today = date.today()
+
+    is_fomc = is_fomc_blackout(
+        today,
+        fomc_meetings=sched.get("fomc_dates", []),
+        window=tuple(sched.get("fomc_blackout_window", [-1, 1]))
+    )
+    is_opex_day = is_opex(today, overrides=sched.get("opex_overrides", []))
+
+    # log status
+    RF.print_log(f"Calendar → FOMC blackout={is_fomc}, OPEX={is_opex_day}", "RISK")
+
+    # Data
+    qqq = get_daily_bars("QQQ")
+    psq = get_daily_bars("PSQ")
+
+    # Target exposure
+    target: TargetExposure = compute_target_exposure(
+        qqq=qqq,
+        psq=psq,
+        equity=equity,
+        vix=vix,
+        cfg=risk_cfg,
+        is_fomc_window=is_fomc,
+        is_opex_day=is_opex_day,
+    )
+    RF.print_log(f"Target → {target.symbol} | {target.direction} | ${target.dollars:,.2f}", "INFO")
+
+    # Positions (before)
+    positions_before = load_positions()
+    RF.print_log(f"Positions BEFORE: {positions_before}", "INFO")
+
+    # Plan intents
+    price = float((qqq if target.symbol == "QQQ" else psq)["close"].iloc[-1])
+    intents: List[OrderIntent] = plan_orders(
+        current_positions=positions_before,
+        target=target,
+        current_price=price,
+        minutes_to_close=minutes_to_close,
+        min_trade_value=min_trade_value,
+        emergency_override=False,
+    )
+
+    audit = ENSStyleAudit()
+
+    if not intents:
+        RF.print_log("No trade planned (flat, blocked, or below threshold).", "SUCCESS")
+        return {
+            "target": asdict(target),
+            "positions_before": positions_before,
+            "intents": [],
+            "positions_after": positions_before,
+        }
+
+    # Log PLAN records
+    for it in intents:
+        audit.log(kind="PLAN", data=_intent_to_dict(it))
+
+    # Broker dry-run payloads → ORDER records
+    exe = AlpacaExecutor(AlpacaCreds(key=env.alpaca_key, secret=env.alpaca_secret), dry_run=True)
+    payloads = exe.place_orders(intents)
+    for p in payloads:
+        audit.log(kind="ORDER", data={k: v for k, v in p.items() if not (k == "limit_price" and v is None)})
+
+    # Simulate fills → update positions → FILL records
+    fills = simulate_fills(intents, last_price=price)
+    positions_after = apply_simulated_fills(positions_before, fills)
+    save_positions(positions_after)
+    for f in fills:
+        audit.log(kind="FILL", data={
+            "symbol": f.symbol, "side": f.side,
+            "qty": round(float(f.qty), 6), "price": float(f.price), "note": f.note
+        })
+
+    RF.print_log(f"Positions AFTER: {positions_after}", "INFO")
+    RF.print_log("Offline daily cycle complete", "SUCCESS")
+
+    return {
+        "target": asdict(target),
+        "positions_before": positions_before,
+        "intents": [_intent_to_dict(it) for it in intents],
+        "positions_after": positions_after,
+    }
