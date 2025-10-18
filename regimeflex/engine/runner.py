@@ -10,7 +10,8 @@ from .data import get_daily_bars
 from .risk import RiskConfig
 from .portfolio import compute_target_exposure, TargetExposure
 from .exec_planner import plan_orders, OrderIntent
-from .exec_alpaca import AlpacaCreds, AlpacaExecutor
+from .exec_alpaca import AlpacaCreds, AlpacaExecutor, ALPACA_PAPER_URL, ALPACA_LIVE_URL
+from .reconcile import compare_intents_vs_orders
 from .positions import load_positions, save_positions
 from .fills import simulate_fills, apply_simulated_fills
 from .storage import ENSStyleAudit
@@ -105,11 +106,32 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
     for it in intents:
         audit.log(kind="PLAN", data=_intent_to_dict(it))
 
-    # Broker dry-run payloads → ORDER records
-    exe = AlpacaExecutor(AlpacaCreds(key=env.alpaca_key, secret=env.alpaca_secret), dry_run=True)
-    payloads = exe.place_orders(intents)
-    for p in payloads:
-        audit.log(kind="ORDER", data={k: v for k, v in p.items() if not (k == "limit_price" and v is None)})
+    # --- Optional: place with Alpaca if enabled in config ---
+    broker_cfg = Config(".")._load_yaml("config/broker.yaml") if (Config(".").root / "config/broker.yaml").exists() else {}
+    alp = (broker_cfg.get("alpaca") or {})
+    do_broker = bool(alp.get("enabled", True))  # default on, controlled by dry_run anyway
+    dry_run_broker = bool(alp.get("dry_run", True))
+    base_url = ALPACA_PAPER_URL if (alp.get("mode","paper") == "paper") else ALPACA_LIVE_URL
+
+    env = load_env()
+    exe = AlpacaExecutor(AlpacaCreds(key=env.alpaca_key, secret=env.alpaca_secret, base_url=base_url),
+                         dry_run=dry_run_broker)
+
+    broker_results = []
+    if do_broker and intents:
+        RF.print_log(f"Broker path: mode={alp.get('mode','paper')} dry_run={dry_run_broker}", "INFO")
+        broker_results = exe.place_orders(intents)
+        # Audit ORDER results (payloads if dry-run, API responses if live)
+        for res in broker_results:
+            audit.log(kind="ORDER", data={k: v for k, v in res.items()})
+    else:
+        RF.print_log("Broker path skipped (disabled or no intents).", "INFO")
+
+    # Reconciliation (plan vs acknowledged/payload)
+    if broker_results:
+        rec = compare_intents_vs_orders(intents, broker_results)
+        RF.print_log(f"Reconcile: matches={len(rec['matches'])} mismatches={len(rec['mismatches'])} "
+                     f"unmatched_intents={len(rec['unmatched_intents'])}", "INFO")
 
     # Simulate fills → update positions → FILL records
     fills = simulate_fills(intents, last_price=price)

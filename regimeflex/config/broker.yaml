@@ -1,3 +1,4 @@
 alpaca:
+  enabled: true        # enable broker integration in daily run
   mode: "paper"        # paper | live
   dry_run: true        # master safety; true = never POST
