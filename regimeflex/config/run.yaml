@@ -1,0 +1,12 @@
+equity: 50000.0
+vix_assumption: 25.0      # use None to ignore VIX filter
+minutes_to_close: 15
+min_trade_value: 500.0
+
+report:
+  enabled: true
+  out_dir: "reports"
+  filename_prefix: "daily_report"
+  include_positions: true
+  include_intents: true
+  include_breadcrumbs: true
