@@ -1,0 +1,9 @@
+provider: "cache"         # cache | polygon | alpaca
+symbols: ["QQQ", "PSQ"]
+lookback_days: 800        # how many daily bars to fetch when seeding
+force_refresh: false      # if true, ignore existing cache
+# Provider-specific
+polygon:
+  base_url: "https://api.polygon.io/v2/aggs/ticker/{symbol}/range/1/day/{from}/{to}"
+alpaca:
+  base_url: "https://data.alpaca.markets/v2/stocks/{symbol}/bars?timeframe=1Day&start={from}&end={to}&limit=10000"

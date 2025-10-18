@@ -4,6 +4,11 @@ from pathlib import Path
 from datetime import datetime, timezone
 import pandas as pd
 
+from .config import Config
+from .identity import RegimeFlexIdentity as RF
+from .env import load_env
+from .data_providers import fetch_polygon_daily, fetch_alpaca_daily
+
 CACHE_DIR = Path("data/cache")
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -95,3 +100,42 @@ def seed_cache(symbol: str, df: pd.DataFrame) -> None:
     df = df.copy()
     df.index = pd.to_datetime(df.index).tz_localize("UTC").normalize()
     save_to_cache(symbol, df)
+
+def get_daily_bars_with_provider(symbol: str, force_refresh: bool = False) -> pd.DataFrame:
+    cfg = Config(".").run  # not needed; just to ensure config loads? we need data.yaml
+    data_cfg = Config(".")._load_yaml("config/data.yaml")  # reuse loader
+    provider = (data_cfg.get("provider") or "cache").lower()
+    lookback = int(data_cfg.get("lookback_days", 800))
+    force_refresh = bool(data_cfg.get("force_refresh", force_refresh))
+    env = load_env()
+
+    # Try cache first unless forced
+    df_cached = load_from_cache(symbol)
+    if provider == "cache" and df_cached is not None and not force_refresh:
+        run_validations(df_cached, symbol)
+        return df_cached
+
+    live_df = None
+    if provider == "polygon":
+        poly = data_cfg.get("polygon", {}) or {}
+        live_df = fetch_polygon_daily(symbol, lookback, poly.get("base_url",""), env.polygon_key)
+    elif provider == "alpaca":
+        alp = data_cfg.get("alpaca", {}) or {}
+        live_df = fetch_alpaca_daily(symbol, lookback, alp.get("base_url",""), env.alpaca_key, env.alpaca_secret)
+
+    if live_df is not None and not live_df.empty:
+        # normalize + validate + write cache
+        live_df = live_df.copy()
+        live_df.index = pd.to_datetime(live_df.index).tz_convert("UTC").normalize()
+        save_to_cache(symbol, live_df)
+        RF.print_log(f"Cached {symbol}: {len(live_df)} rows", "SUCCESS")
+        run_validations(live_df, symbol)
+        return live_df
+
+    # fallback to cache if live failed
+    if df_cached is not None:
+        RF.print_log(f"{symbol}: live fetch unavailable; using cache", "RISK")
+        run_validations(df_cached, symbol)
+        return df_cached
+
+    raise DataError(f"{symbol}: no data available (provider={provider})")
