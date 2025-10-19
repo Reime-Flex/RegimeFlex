@@ -12,6 +12,7 @@ from .pnl import snapshot_from_positions, append_snapshot_csv
 from .exposure import exposure_allocator
 from .guardrails import enforce_exposure_caps
 from .timing import eod_ready
+from .fingerprint import compute_fingerprint
 from .data import get_daily_bars
 from .risk import RiskConfig
 from .portfolio import compute_target_exposure, TargetExposure
@@ -38,6 +39,14 @@ def _intent_to_dict(it: OrderIntent) -> dict:
 def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trade_value: float = 200.0) -> Dict[str, any]:
     RF.print_log("RegimeFlex offline daily cycle starting", "INFO")
 
+    # Config fingerprint
+    fp = compute_fingerprint(".")
+    RF.print_log(f"Config fingerprint: {fp['sha256_16']} ({len(fp['files'])} files)", "INFO")
+
+    # Audit the fingerprint
+    audit = ENSStyleAudit()
+    audit.log(kind="CFG", data={"hash16": fp["sha256_16"], "hash": fp["sha256"], "files": fp["files"]})
+
     if is_killed():
         RF.print_log("KILL-SWITCH active — aborting run before any actions", "RISK")
         return {
@@ -45,8 +54,9 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
             "positions_before": {},
             "intents": [],
             "positions_after": {},
-            "breadcrumbs": {"kill_switch": True},
-            "snapshot": {}
+            "breadcrumbs": {"kill_switch": True, "config_hash16": fp["sha256_16"]},
+            "snapshot": {},
+            "config_fingerprint": fp
         }
 
     # EOD timing guard
@@ -59,8 +69,9 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
             "positions_before": load_positions(),   # optional: show current
             "intents": [],
             "positions_after": load_positions(),
-            "breadcrumbs": {"eod_guard": why},
-            "snapshot": {}
+            "breadcrumbs": {"eod_guard": why, "config_hash16": fp["sha256_16"]},
+            "snapshot": {},
+            "config_fingerprint": fp
         }
 
     # Load env + config (keys not required in offline)
@@ -154,7 +165,8 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
             "positions_before": positions_before,
             "intents": [],
             "positions_after": positions_before,
-            "breadcrumbs": crumbs,  # NEW
+            "breadcrumbs": {**crumbs, "config_hash16": fp["sha256_16"]},
+            "config_fingerprint": fp
         }
 
     # Log PLAN records
@@ -226,6 +238,7 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         "positions_before": positions_before,
         "intents": [_intent_to_dict(it) for it in intents],
         "positions_after": positions_after,
-        "breadcrumbs": crumbs,  # NEW
-        "snapshot": snap,  # NEW
+        "breadcrumbs": {**crumbs, "config_hash16": fp["sha256_16"]},
+        "snapshot": snap,
+        "config_fingerprint": fp
     }
