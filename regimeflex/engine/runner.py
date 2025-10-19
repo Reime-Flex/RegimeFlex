@@ -9,6 +9,7 @@ from .config import Config
 from .killswitch import is_killed
 from .logrotate import rotate_all
 from .pnl import snapshot_from_positions, append_snapshot_csv
+from .exposure import exposure_allocator
 from .data import get_daily_bars
 from .risk import RiskConfig
 from .portfolio import compute_target_exposure, TargetExposure
@@ -69,15 +70,38 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
     qqq = get_daily_bars("QQQ")
     psq = get_daily_bars("PSQ")
 
-    # Target exposure
-    target: TargetExposure = compute_target_exposure(
-        qqq=qqq,
-        psq=psq,
-        equity=equity,
-        vix=vix,
-        cfg=risk_cfg,
-        is_fomc_window=is_fomc,
-        is_opex_day=is_opex_day,
+    # Exposure allocation (using QQQ as NDX proxy)
+    alloc = exposure_allocator(qqq)
+    RF.print_log(f"Exposure allocation → TQQQ={alloc['TQQQ']:.2f} SQQQ={alloc['SQQQ']:.2f}", "INFO")
+
+    # Calculate target dollar exposures based on allocator
+    tqqq_target_dollars = equity * alloc["TQQQ"]
+    sqqq_target_dollars = equity * alloc["SQQQ"]
+    
+    # Determine primary target (largest allocation)
+    if tqqq_target_dollars > sqqq_target_dollars:
+        target_symbol = "QQQ"  # Use QQQ as TQQQ proxy
+        target_dollars = tqqq_target_dollars
+        target_direction = "LONG"
+    elif sqqq_target_dollars > tqqq_target_dollars:
+        target_symbol = "PSQ"  # Use PSQ as SQQQ proxy
+        target_dollars = sqqq_target_dollars
+        target_direction = "LONG"
+    else:
+        target_symbol = "QQQ"
+        target_dollars = 0.0
+        target_direction = "FLAT"
+
+    # Create target exposure
+    target_price = float((qqq if target_symbol == "QQQ" else psq)["close"].iloc[-1])
+    target_shares = target_dollars / target_price if target_price > 0 else 0.0
+    
+    target = TargetExposure(
+        symbol=target_symbol,
+        direction=target_direction,
+        dollars=target_dollars,
+        shares=target_shares,
+        notes=f"Exposure allocator: TQQQ={alloc['TQQQ']:.2f} SQQQ={alloc['SQQQ']:.2f}"
     )
     RF.print_log(f"Target → {target.symbol} | {target.direction} | ${target.dollars:,.2f}", "INFO")
 

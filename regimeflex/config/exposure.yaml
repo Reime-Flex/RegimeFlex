@@ -1,0 +1,11 @@
+trend:
+  fast_ma: 20
+  slow_ma: 250
+
+weights:
+  base_risk: 1.0           # 1.0 = 100% nominal exposure
+  max_exposure_pct: 1.0    # cap per side (100%)
+  min_exposure_pct: 0.0
+  extension_factor: 2.5    # how sharply exposure drops as extension increases
+  bb_period: 20
+  bb_std: 2.0

@@ -98,7 +98,10 @@ def get_daily_bars(symbol: str) -> pd.DataFrame:
 def seed_cache(symbol: str, df: pd.DataFrame) -> None:
     """Normalize index to UTC date and save."""
     df = df.copy()
-    df.index = pd.to_datetime(df.index).tz_localize("UTC").normalize()
+    if df.index.tz is None:
+        df.index = pd.to_datetime(df.index).tz_localize("UTC").normalize()
+    else:
+        df.index = pd.to_datetime(df.index).tz_convert("UTC").normalize()
     save_to_cache(symbol, df)
 
 def get_daily_bars_with_provider(symbol: str, force_refresh: bool = False) -> pd.DataFrame:
