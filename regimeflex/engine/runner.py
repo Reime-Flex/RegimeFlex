@@ -11,6 +11,7 @@ from .logrotate import rotate_all
 from .pnl import snapshot_from_positions, append_snapshot_csv
 from .exposure import exposure_allocator
 from .guardrails import enforce_exposure_caps
+from .timing import eod_ready
 from .data import get_daily_bars
 from .risk import RiskConfig
 from .portfolio import compute_target_exposure, TargetExposure
@@ -45,6 +46,20 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
             "intents": [],
             "positions_after": {},
             "breadcrumbs": {"kill_switch": True},
+            "snapshot": {}
+        }
+
+    # EOD timing guard
+    ok_time, why = eod_ready(minutes_to_close)
+    RF.print_log(f"EOD timing check → {why}", "RISK" if not ok_time else "INFO")
+    if not ok_time:
+        # Exit cleanly before any actions
+        return {
+            "target": {"symbol": "NA", "direction": "FLAT", "dollars": 0.0, "shares": 0.0, "notes": "EOD_GUARD"},
+            "positions_before": load_positions(),   # optional: show current
+            "intents": [],
+            "positions_after": load_positions(),
+            "breadcrumbs": {"eod_guard": why},
             "snapshot": {}
         }
 

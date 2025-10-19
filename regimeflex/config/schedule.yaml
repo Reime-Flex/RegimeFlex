@@ -7,3 +7,7 @@ no_trade_dates: []   # ISO dates like "2025-12-25"
 fomc_dates: []      # e.g., ["2025-11-05","2025-12-17"]
 opex_overrides: []  # extra dates to treat as OPEX (if exchanges add quirks)
 fomc_blackout_window: [-1, 1]   # day before and day after
+
+eod_guard:
+  min_minutes_before_close: 30   # require we're within 30 minutes of close
+  allow_early_override: false    # set true to bypass the guard
