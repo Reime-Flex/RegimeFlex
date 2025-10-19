@@ -1,6 +1,7 @@
 from __future__ import annotations
 from pathlib import Path
 from datetime import datetime, timezone
+from .health import run_health   # NEW
 
 def _esc(s: str) -> str:
     return (s or "").replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")
@@ -13,6 +14,10 @@ def write_daily_html(result: dict, out_dir: str, filename_prefix: str = "daily_r
     pos_after = result.get("positions_after", {})
     snap = result.get("snapshot", {}) or {}
 
+    # NEW: health snapshot for this render
+    health = run_health()
+    hstatus = health.status  # "PASS" | "WARN" | "FAIL"
+
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H%MZ")
     fname = f"{filename_prefix}_{stamp}.html"
     fpath = Path(out_dir) / fname
@@ -21,13 +26,34 @@ def write_daily_html(result: dict, out_dir: str, filename_prefix: str = "daily_r
     html.append("<!doctype html><html><head><meta charset='utf-8'>")
     html.append("<meta name='viewport' content='width=device-width, initial-scale=1' />")
     html.append("<title>RegimeFlex Daily Report</title>")
-    # minimal neutral theme
-    html.append("<style>body{font-family:Inter,system-ui,Arial,sans-serif;margin:24px;background:#f8fafc;color:#0f172a}"
-                "h1{color:#1a237e;margin:0 0 8px} .card{background:#fff;border-radius:12px;padding:16px;margin:12px 0;"
-                "box-shadow:0 1px 3px rgba(0,0,0,.05)} .muted{color:#475569} code{background:#e2e8f0;padding:2px 6px;"
-                "border-radius:6px} .k{color:#00d4ff}</style></head><body>")
+    # styles + banner theme
+    html.append("""
+    <style>
+      :root{
+        --pass:#10b981; /* emerald */
+        --warn:#f59e0b; /* gold */
+        --fail:#ef4444; /* ruby */
+        --ink:#0f172a;  --panel:#fff; --bg:#f8fafc; --brand:#1a237e;
+      }
+      body{font-family:Inter,system-ui,Arial,sans-serif;margin:24px;background:var(--bg);color:var(--ink)}
+      h1{color:var(--brand);margin:0 0 8px}
+      .card{background:var(--panel);border-radius:12px;padding:16px;margin:12px 0;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+      .muted{color:#475569} code{background:#e2e8f0;padding:2px 6px;border-radius:6px}
+      .banner{padding:10px 14px;border-radius:10px;margin:0 0 14px;font-weight:600;display:inline-block}
+      .pass{background:rgba(16,185,129,.10);color:var(--pass);border:1px solid rgba(16,185,129,.35)}
+      .warn{background:rgba(245,158,11,.10);color:var(--warn);border:1px solid rgba(245,158,11,.35)}
+      .fail{background:rgba(239,68,68,.10);color:var(--fail);border:1px solid rgba(239,68,68,.35)}
+      table{border-collapse:collapse;width:100%} th,td{padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:left}
+    </style>
+    """)
+    html.append("</head><body>")
     html.append("<h1>RegimeFlex Daily Report</h1>")
     html.append(f"<div class='muted'>Generated {stamp}</div>")
+
+    # NEW: banner
+    cls = "pass" if hstatus=="PASS" else ("warn" if hstatus=="WARN" else "fail")
+    icon = "✅" if hstatus=="PASS" else ("⚠️" if hstatus=="WARN" else "❌")
+    html.append(f"<div class='banner {cls}'>{icon} Health: {hstatus}</div>")
 
     # Target
     html.append("<div class='card'>")
