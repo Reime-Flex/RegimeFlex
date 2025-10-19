@@ -9,3 +9,13 @@ weights:
   extension_factor: 2.5    # how sharply exposure drops as extension increases
   bb_period: 20
   bb_std: 2.0
+
+confirmation:                # NEW
+  momentum_requires_close_above_fast: true
+  momentum_requires_slope_up: true     # fast MA slope > 0 for momentum boost
+
+vol_dampener:                # NEW
+  enabled: true
+  lookback_days: 20          # realized vol window
+  cap_rvol: 0.25             # if rVol20 > 25%, start damping
+  floor_scale: 0.60          # never scale below 60% of the post-extension weight
