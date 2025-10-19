@@ -10,6 +10,7 @@ from engine.identity import RegimeFlexIdentity as RF
 from engine.killswitch import is_killed
 from engine.runner import run_daily_offline
 from engine.config import Config
+from engine.health import run_health
 
 app = Flask(__name__)
 
@@ -28,6 +29,16 @@ def trigger_daily():
     )
     RF.print_log("HTTP trigger completed.", "SUCCESS")
     return jsonify({"status": "ok", "result": {"target": result.get("target", {})}}), 200
+
+@app.route("/health", methods=["GET"])
+def health():
+    rep = run_health()
+    code = 200 if rep.status == "PASS" else (429 if rep.status == "WARN" else 503)
+    return {
+        "status": rep.status,
+        "timestamp": rep.timestamp,
+        "checks": [c.__dict__ for c in rep.checks]
+    }, code
 
 if __name__ == "__main__":
     # IMPORTANT: bind to 0.0.0.0 and the PORT env var for Railway
