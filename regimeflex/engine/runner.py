@@ -11,6 +11,7 @@ from .logrotate import rotate_all
 from .pnl import snapshot_from_positions, append_snapshot_csv
 from .exposure import exposure_allocator
 from .guardrails import enforce_exposure_caps
+from .symbols import resolve_signal_underlier
 from .timing import eod_ready
 from .fingerprint import compute_fingerprint
 from .data import get_daily_bars
@@ -94,11 +95,14 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
     RF.print_log(f"Calendar → FOMC blackout={is_fomc}, OPEX={is_opex_day}", "RISK")
 
     # Data
-    qqq = get_daily_bars("QQQ")
-    psq = get_daily_bars("PSQ")
+    qqq = get_daily_bars("QQQ")   # execution underlier for TQQQ
+    psq = get_daily_bars("PSQ")   # execution underlier for SQQQ
 
-    # Exposure allocation (using QQQ as NDX proxy)
-    alloc = exposure_allocator(qqq)
+    # Signal underlier
+    sig_sym, sig_df = resolve_signal_underlier()
+
+    # Allocation from signal underlier
+    alloc = exposure_allocator(sig_df)
     alloc, guard_note = enforce_exposure_caps(alloc)
     RF.print_log(f"Allocation (guarded) → TQQQ={alloc['TQQQ']:.2f} SQQQ={alloc['SQQQ']:.2f}", "INFO")
 
@@ -139,6 +143,7 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         "fomc_blackout": is_fomc,
         "opex": is_opex_day,
         "target_notes": target.notes,
+        "signal_underlier": sig_sym,   # NEW
     }
 
     # Positions (before)

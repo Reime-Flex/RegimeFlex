@@ -24,3 +24,8 @@ limits:
   max_gross: 1.00   # total |TQQQ| + |SQQQ| <= 100% of equity
   max_tqqq: 1.00    # TQQQ weight cap (0.00–1.00)
   max_sqqq: 1.00    # SQQQ weight cap (0.00–1.00)
+
+signal:
+  underlier: "QQQ"     # "QQQ" or "NDX"
+  ndx_symbol: "^NDX"   # only used if underlier == "NDX" and you have it cached/fetched
+  proxy_fallback: "QQQ"  # fallback if ndx data missing
