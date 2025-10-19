@@ -2,3 +2,9 @@ alpaca:
   enabled: true        # enable broker integration in daily run
   mode: "paper"        # paper | live
   dry_run: true        # master safety; true = never POST
+
+constraints:
+  lot_size: 1          # whole-share ETFs
+  min_qty: 1           # smallest acceptable order size (shares)
+  qty_precision: 0     # decimals in qty; 0 = integer shares
+  min_notional: 200.0  # skip trades below this $

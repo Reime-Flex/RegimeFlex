@@ -3,6 +3,9 @@ from dataclasses import dataclass
 from typing import List, Dict
 
 from .portfolio import TargetExposure
+from .config import Config
+from .sizing import load_constraints, sanitize_desired_qty
+from .identity import RegimeFlexIdentity as RF
 
 @dataclass(frozen=True)
 class OrderIntent:
@@ -74,7 +77,18 @@ def plan_orders(
             limit_price = round(current_price * 1.005, 2)
 
     side = "BUY" if delta > 0 else "SELL"
-    qty = abs(delta)
+    
+    # Sanitize quantity against broker constraints
+    broker_cfg = Config(".")._load_yaml("config/broker.yaml") if (Config(".").root / "config/broker.yaml").exists() else {}
+    cons = load_constraints(broker_cfg)
+    raw_qty = abs(delta)
+    adj_qty, size_note = sanitize_desired_qty(raw_qty, current_price, cons)
+
+    if adj_qty <= 0.0:
+        RF.print_log(f"Skipped trade for {sym}: {size_note}", "INFO")
+        return intents  # empty
+
+    qty = adj_qty
 
     intent = OrderIntent(
         symbol=sym,
@@ -83,7 +97,8 @@ def plan_orders(
         order_type=order_type,
         time_in_force=tif,
         limit_price=limit_price,
-        reason=f"plan_orders: curr={current_shares:.2f}, desired={desired_shares:.2f}, delta={delta:.2f}"
+        reason=f"plan_orders: curr={current_shares:.2f}, desired={desired_shares:.2f}, "
+               f"delta={delta:.2f} | sizing={size_note}"
     )
     intents.append(intent)
     return intents
