@@ -19,3 +19,8 @@ vol_dampener:                # NEW
   lookback_days: 20          # realized vol window
   cap_rvol: 0.25             # if rVol20 > 25%, start damping
   floor_scale: 0.60          # never scale below 60% of the post-extension weight
+
+limits:
+  max_gross: 1.00   # total |TQQQ| + |SQQQ| <= 100% of equity
+  max_tqqq: 1.00    # TQQQ weight cap (0.00–1.00)
+  max_sqqq: 1.00    # SQQQ weight cap (0.00–1.00)

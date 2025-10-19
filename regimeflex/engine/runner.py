@@ -10,6 +10,7 @@ from .killswitch import is_killed
 from .logrotate import rotate_all
 from .pnl import snapshot_from_positions, append_snapshot_csv
 from .exposure import exposure_allocator
+from .guardrails import enforce_exposure_caps
 from .data import get_daily_bars
 from .risk import RiskConfig
 from .portfolio import compute_target_exposure, TargetExposure
@@ -72,7 +73,8 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
 
     # Exposure allocation (using QQQ as NDX proxy)
     alloc = exposure_allocator(qqq)
-    RF.print_log(f"Exposure allocation → TQQQ={alloc['TQQQ']:.2f} SQQQ={alloc['SQQQ']:.2f}", "INFO")
+    alloc, guard_note = enforce_exposure_caps(alloc)
+    RF.print_log(f"Allocation (guarded) → TQQQ={alloc['TQQQ']:.2f} SQQQ={alloc['SQQQ']:.2f}", "INFO")
 
     # Calculate target dollar exposures based on allocator
     tqqq_target_dollars = equity * alloc["TQQQ"]
