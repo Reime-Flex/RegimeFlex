@@ -14,6 +14,7 @@ from .guardrails import enforce_exposure_caps
 from .symbols import resolve_signal_underlier
 from .timing import eod_ready
 from .fingerprint import compute_fingerprint
+from .telemetry import Notifier, TGCreds
 from .data import get_daily_bars
 from .risk import RiskConfig
 from .portfolio import compute_target_exposure, TargetExposure
@@ -74,6 +75,32 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
             "snapshot": {},
             "config_fingerprint": fp
         }
+
+    # Decision window ping (when within EOD window)
+    tele_cfg = (Config(".").telemetry or {})
+    if tele_cfg.get("decision_ping", True) and tele_cfg.get("enabled", True):
+        # brief context
+        exp_cfg = Config(".")._load_yaml("config/exposure.yaml")
+        fast = exp_cfg["trend"]["fast_ma"]
+        bb_p  = exp_cfg["weights"]["bb_period"]
+        bb_sd = exp_cfg["weights"]["bb_std"]
+        # Use any breadcrumbs already computed (if not yet available, we'll fill what we have)
+        phase_txt = locals().get("phase", "") or "N/A"
+        underlier_txt = locals().get("sig_sym", "") or "N/A"
+
+        msg = (
+            f"*⏰ RegimeFlex Decision Window*\n"
+            f"Within EOD window — `{minutes_to_close}m` to close.\n"
+            f"*Underlier*: `{underlier_txt}`   *Phase*: `{phase_txt}`\n"
+            f"*BB*: {bb_p}/{bb_sd}σ   *FastMA*: {fast}\n"
+            f"_This is an informational ping; no orders placed yet._"
+        )
+        env = load_env()
+        notifier = Notifier(TGCreds(token=env.telegram_bot_token, chat_id=env.telegram_chat_id))
+        notifier.send(msg)
+
+    # Always print a concise console line too
+    RF.print_log(f"Decision window active — {minutes_to_close}m to close", "INFO")
 
     # Load env + config (keys not required in offline)
     env = load_env()

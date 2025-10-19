@@ -1,3 +1,6 @@
 enabled: true            # set to false to silence notifications
 channel: "telegram"      # reserved (future: email/webhook)
 verbosity: "full"       # brief | full
+
+# NEW
+decision_ping: true   # send a short alert when within the EOD window
