@@ -1,5 +1,11 @@
 import os
+import sys
+from pathlib import Path
 from flask import Flask, jsonify
+
+# Add parent directory to path to import engine module
+sys.path.append(str(Path(__file__).parent.parent))
+
 from engine.identity import RegimeFlexIdentity as RF
 from engine.killswitch import is_killed
 from engine.runner import run_daily_offline
