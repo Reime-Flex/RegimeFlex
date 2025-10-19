@@ -84,6 +84,10 @@ class Notifier:
                 f"SQQQ: {fmt(prev.get('SQQQ',0))}→{fmt(des.get('SQQQ',0))} (Δ{fmt(dlt.get('SQQQ',0))})"
             )
 
+        reason = bc.get("plan_reason", "")
+        if reason:
+            brief.append(f"*Why*: {reason}")
+
         if verbosity == "full":
             brief.append(f"*Notes*: `{bc.get('target_notes','')}`")
             brief.append(f"*Positions After*: `{after}`")

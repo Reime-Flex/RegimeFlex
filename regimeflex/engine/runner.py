@@ -12,6 +12,7 @@ from .pnl import snapshot_from_positions, append_snapshot_csv
 from .exposure import exposure_allocator, classify_phase
 from .guardrails import enforce_exposure_caps
 from .exposure_delta import current_exposure_weights, exposure_delta
+from .exposure_reason import compute_exposure_diagnostics, format_plan_reason
 from .symbols import resolve_signal_underlier
 from .timing import eod_ready
 from .fingerprint import compute_fingerprint
@@ -183,6 +184,16 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         "signal_underlier": sig_sym,   # NEW
         "phase": phase,   # NEW
     }
+
+    # Compute plan reason (why exposure changed)
+    diag = compute_exposure_diagnostics(sig_df)
+    plan_reason = format_plan_reason(diag, phase=phase, guard_note=guard_note)
+    
+    # Log it
+    RF.print_log(f"Plan reason → {plan_reason}", "INFO")
+    
+    # Add to breadcrumbs so telemetry/report can show it
+    crumbs.update({"plan_reason": plan_reason})
 
     # Positions (before)
     positions_before = load_positions()
