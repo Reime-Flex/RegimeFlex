@@ -9,7 +9,7 @@ from .config import Config
 from .killswitch import is_killed
 from .logrotate import rotate_all
 from .pnl import snapshot_from_positions, append_snapshot_csv
-from .exposure import exposure_allocator
+from .exposure import exposure_allocator, classify_phase
 from .guardrails import enforce_exposure_caps
 from .symbols import resolve_signal_underlier
 from .timing import eod_ready
@@ -101,6 +101,15 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
     # Signal underlier
     sig_sym, sig_df = resolve_signal_underlier()
 
+    # Compute market phase
+    exp_cfg = Config(".")._load_yaml("config/exposure.yaml")
+    fast = exp_cfg["trend"]["fast_ma"]
+    bb_p = exp_cfg["weights"]["bb_period"]
+    bb_std = exp_cfg["weights"]["bb_std"]
+
+    phase = classify_phase(sig_df, fast=fast, bb_p=bb_p, bb_std=bb_std)
+    RF.print_log(f"Signal phase → {phase}", "INFO")
+
     # Allocation from signal underlier
     alloc = exposure_allocator(sig_df)
     alloc, guard_note = enforce_exposure_caps(alloc)
@@ -144,6 +153,7 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         "opex": is_opex_day,
         "target_notes": target.notes,
         "signal_underlier": sig_sym,   # NEW
+        "phase": phase,   # NEW
     }
 
     # Positions (before)

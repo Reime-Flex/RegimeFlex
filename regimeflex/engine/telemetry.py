@@ -67,6 +67,10 @@ class Notifier:
             f"*FOMC* blackout: {bc.get('fomc_blackout', False)}   *OPEX*: {bc.get('opex', False)}",
         ]
 
+        phase = bc.get("phase", "")
+        if phase:
+            brief.append(f"*Phase*: {phase}")
+
         if verbosity == "full":
             brief.append(f"*Notes*: `{bc.get('target_notes','')}`")
             brief.append(f"*Positions After*: `{after}`")

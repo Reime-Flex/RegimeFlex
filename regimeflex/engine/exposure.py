@@ -91,3 +91,21 @@ def exposure_allocator(df: pd.DataFrame) -> dict:
         return {"TQQQ": 0.0, "SQQQ": weight}
     else:
         return {"TQQQ": weight, "SQQQ": 0.0}
+
+def classify_phase(df: pd.DataFrame, fast: int, bb_p: int, bb_std: float) -> str:
+    """
+    Returns one of: 'MOMENTUM', 'ACCUMULATE', 'MEANREVERT'
+      - MOMENTUM: close > upper band AND close > fast MA AND fast MA slope up
+      - ACCUMULATE: close >= fast MA (not MOMENTUM)
+      - MEANREVERT: otherwise
+    """
+    sma_fast = compute_sma(df, fast)
+    upper, _ = compute_bbands(df, bb_p, bb_std)
+    c = df["close"].iloc[-1]
+    mom = (c > upper.iloc[-1])
+    # confirmations
+    if mom and c > sma_fast.iloc[-1]:
+        if len(sma_fast) >= 2 and pd.notna(sma_fast.iloc[-2]) and sma_fast.iloc[-1] > sma_fast.iloc[-2]:
+            return "MOMENTUM"
+    # accumulate vs mean-revert
+    return "ACCUMULATE" if c >= sma_fast.iloc[-1] else "MEANREVERT"

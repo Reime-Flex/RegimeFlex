@@ -48,6 +48,7 @@ def write_daily_html(result: dict, out_dir: str, filename_prefix: str = "daily_r
     html.append(f"<li>VIX assumption: <b>{bc.get('vix','?')}</b></li>")
     html.append(f"<li>FOMC blackout: <b>{bc.get('fomc_blackout', False)}</b></li>")
     html.append(f"<li>OPEX: <b>{bc.get('opex', False)}</b></li>")
+    html.append(f"<li>Phase: <b>{_esc(str(bc.get('phase','')))}</b></li>")
     html.append(f"<li>Config hash: <code>{_esc(str(bc.get('config_hash16','')))}</code></li>")
     html.append("</ul>")
     html.append("</div>")
