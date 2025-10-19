@@ -1,1 +1,1 @@
-web: python scripts/run_http_trigger.py
+web: cd regimeflex && python scripts/run_http_trigger.py
