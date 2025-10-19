@@ -11,6 +11,7 @@ from .logrotate import rotate_all
 from .pnl import snapshot_from_positions, append_snapshot_csv
 from .exposure import exposure_allocator, classify_phase
 from .guardrails import enforce_exposure_caps
+from .exposure_delta import current_exposure_weights, exposure_delta
 from .symbols import resolve_signal_underlier
 from .timing import eod_ready
 from .fingerprint import compute_fingerprint
@@ -186,6 +187,30 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
     # Positions (before)
     positions_before = load_positions()
     RF.print_log(f"Positions BEFORE: {positions_before}", "INFO")
+
+    # Calculate exposure deltas (prev vs desired)
+    # Build a price map consistent with how you value targets
+    last_prices_map = {
+        "TQQQ": float(qqq["close"].iloc[-1]),  # using QQQ close as proxy for sizing baseline
+        "SQQQ": float(psq["close"].iloc[-1]),  # using PSQ close as proxy for sizing baseline
+    }
+
+    prev_w = current_exposure_weights(positions_before, last_prices_map, equity_ref=equity)
+    dW = exposure_delta(prev_w, alloc)
+
+    # Log concise delta line
+    RF.print_log(
+        f"Exposure change → TQQQ {prev_w['TQQQ']:.2f}→{alloc['TQQQ']:.2f} (Δ{dW['TQQQ']:+.2f}) | "
+        f"SQQQ {prev_w['SQQQ']:.2f}→{alloc['SQQQ']:.2f} (Δ{dW['SQQQ']:+.2f})",
+        "INFO"
+    )
+
+    # Add to breadcrumbs for report/telemetry
+    crumbs.update({
+        "prev_exposure": { "TQQQ": round(prev_w["TQQQ"], 4), "SQQQ": round(prev_w["SQQQ"], 4) },
+        "desired_exposure": { "TQQQ": round(alloc["TQQQ"], 4), "SQQQ": round(alloc["SQQQ"], 4) },
+        "delta_exposure": { "TQQQ": round(dW["TQQQ"], 4), "SQQQ": round(dW["SQQQ"], 4) },
+    })
 
     # Plan intents
     price = float((qqq if target.symbol == "QQQ" else psq)["close"].iloc[-1])

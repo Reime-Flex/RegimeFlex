@@ -77,6 +77,24 @@ def write_daily_html(result: dict, out_dir: str, filename_prefix: str = "daily_r
     html.append(f"<li>Phase: <b>{_esc(str(bc.get('phase','')))}</b></li>")
     html.append(f"<li>Config hash: <code>{_esc(str(bc.get('config_hash16','')))}</code></li>")
     html.append("</ul>")
+    
+    # Exposure delta mini-table
+    prev = (result.get("breadcrumbs",{}) or {}).get("prev_exposure", {})
+    des  = (result.get("breadcrumbs",{}) or {}).get("desired_exposure", {})
+    dlt  = (result.get("breadcrumbs",{}) or {}).get("delta_exposure", {})
+    html.append("<h3>Exposure Change</h3>")
+    html.append("<table><thead><tr><th>Side</th><th>Prev</th><th>Desired</th><th>Δ</th></tr></thead><tbody>")
+    def pct(x): 
+        try: return f"{float(x)*100:.2f}%"
+        except: return "0.00%"
+    for side in ["TQQQ","SQQQ"]:
+        html.append("<tr>"
+                    f"<td>{side}</td>"
+                    f"<td>{pct(prev.get(side,0))}</td>"
+                    f"<td>{pct(des.get(side,0))}</td>"
+                    f"<td>{pct(dlt.get(side,0))}</td>"
+                    "</tr>")
+    html.append("</tbody></table>")
     html.append("</div>")
 
     # Intents

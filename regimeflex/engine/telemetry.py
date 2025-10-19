@@ -71,6 +71,19 @@ class Notifier:
         if phase:
             brief.append(f"*Phase*: {phase}")
 
+        # Exposure breadcrumbs (prev → desired with delta)
+        prev = bc.get("prev_exposure", {})
+        des  = bc.get("desired_exposure", {})
+        dlt  = bc.get("delta_exposure", {})
+        if prev and des and dlt:
+            def fmt(x): 
+                try: return f"{float(x)*100:.0f}%"
+                except: return "0%"
+            brief.append(
+                f"*Exposure*  TQQQ: {fmt(prev.get('TQQQ',0))}→{fmt(des.get('TQQQ',0))} (Δ{fmt(dlt.get('TQQQ',0))}) · "
+                f"SQQQ: {fmt(prev.get('SQQQ',0))}→{fmt(des.get('SQQQ',0))} (Δ{fmt(dlt.get('SQQQ',0))})"
+            )
+
         if verbosity == "full":
             brief.append(f"*Notes*: `{bc.get('target_notes','')}`")
             brief.append(f"*Positions After*: `{after}`")
