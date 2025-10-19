@@ -11,6 +11,7 @@ def write_daily_html(result: dict, out_dir: str, filename_prefix: str = "daily_r
     bc = result.get("breadcrumbs", {}) or {}
     intents = result.get("intents", [])
     pos_after = result.get("positions_after", {})
+    snap = result.get("snapshot", {}) or {}
 
     stamp = datetime.now(timezone.utc).strftime("%Y-%m-%d_%H%MZ")
     fname = f"{filename_prefix}_{stamp}.html"
@@ -76,6 +77,24 @@ def write_daily_html(result: dict, out_dir: str, filename_prefix: str = "daily_r
         html.append("<ul>")
         for sym, sh in pos_after.items():
             html.append(f"<li><code>{_esc(str(sym))}</code> — {float(sh):.4f} shares</li>")
+        html.append("</ul>")
+    html.append("</div>")
+
+    # Snapshot
+    html.append("<div class='card'><h2>Daily Snapshot</h2>")
+    if not snap:
+        html.append("<div class='muted'>No snapshot available.</div>")
+    else:
+        html.append("<ul>")
+        html.append(f"<li>Date (UTC): <b>{_esc(str(snap.get('date','')))}</b></li>")
+        html.append(f"<li>Equity (ref): <b>${float(snap.get('equity_ref',0.0)):.2f}</b></li>")
+        html.append(f"<li>Total MV (net): <b>${float(snap.get('total_mv',0.0)):.2f}</b></li>")
+        html.append(f"<li>Gross Exposure: <b>{float(snap.get('gross_exposure_pct',0.0))*100:.2f}%</b></li>")
+        html.append("</ul>")
+        html.append("<h3>By Symbol</h3>")
+        html.append("<ul>")
+        html.append(f"<li>QQQ — MV: ${float(snap.get('QQQ_mv',0.0)):.2f} | Wgt: {float(snap.get('QQQ_w',0.0))*100:.2f}%</li>")
+        html.append(f"<li>PSQ — MV: ${float(snap.get('PSQ_mv',0.0)):.2f} | Wgt: {float(snap.get('PSQ_w',0.0))*100:.2f}%</li>")
         html.append("</ul>")
     html.append("</div>")
 

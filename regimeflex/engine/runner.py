@@ -8,6 +8,7 @@ from .env import load_env
 from .config import Config
 from .killswitch import is_killed
 from .logrotate import rotate_all
+from .pnl import snapshot_from_positions, append_snapshot_csv
 from .data import get_daily_bars
 from .risk import RiskConfig
 from .portfolio import compute_target_exposure, TargetExposure
@@ -41,7 +42,8 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
             "positions_before": {},
             "intents": [],
             "positions_after": {},
-            "breadcrumbs": {"kill_switch": True}
+            "breadcrumbs": {"kill_switch": True},
+            "snapshot": {}
         }
 
     # Load env + config (keys not required in offline)
@@ -158,6 +160,21 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
     RF.print_log(f"Positions AFTER: {positions_after}", "INFO")
     RF.print_log("Offline daily cycle complete", "SUCCESS")
 
+    # Daily PnL/Exposure snapshot
+    try:
+        equity_ref = float(Config(".").run.get("equity", 25000.0))
+    except Exception:
+        equity_ref = 25000.0
+
+    # Last prices for valuation
+    last_prices = {
+        "QQQ": float(qqq["close"].iloc[-1]),
+        "PSQ": float(psq["close"].iloc[-1]),
+    }
+
+    snap = snapshot_from_positions(positions_after, last_prices, equity_ref)
+    append_snapshot_csv(snap)
+
     # Log rotation at end of daily run (config-gated)
     logs_cfg = Config(".")._load_yaml("config/logs.yaml") if (Config(".").root / "config/logs.yaml").exists() else {}
     if logs_cfg.get("rotate_on_run", True):
@@ -169,4 +186,5 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         "intents": [_intent_to_dict(it) for it in intents],
         "positions_after": positions_after,
         "breadcrumbs": crumbs,  # NEW
+        "snapshot": snap,  # NEW
     }
