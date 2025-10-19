@@ -1,0 +1,9 @@
+rotate_on_run: true        # call rotation at end of daily run
+retention_days: 30         # delete archives older than this
+paths:
+  - "logs/audit"           # JSONL ledgers (ledger_YYYYMMDD.jsonl)
+  - "logs/trading"         # (future) fills/pnl logs
+  - "logs/signals"         # (future) signal dumps
+patterns:
+  - "*.jsonl"
+  - "*.log"

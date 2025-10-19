@@ -7,6 +7,7 @@ from .identity import RegimeFlexIdentity as RF
 from .env import load_env
 from .config import Config
 from .killswitch import is_killed
+from .logrotate import rotate_all
 from .data import get_daily_bars
 from .risk import RiskConfig
 from .portfolio import compute_target_exposure, TargetExposure
@@ -156,6 +157,11 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
 
     RF.print_log(f"Positions AFTER: {positions_after}", "INFO")
     RF.print_log("Offline daily cycle complete", "SUCCESS")
+
+    # Log rotation at end of daily run (config-gated)
+    logs_cfg = Config(".")._load_yaml("config/logs.yaml") if (Config(".").root / "config/logs.yaml").exists() else {}
+    if logs_cfg.get("rotate_on_run", True):
+        rotate_all()
 
     return {
         "target": asdict(target),
