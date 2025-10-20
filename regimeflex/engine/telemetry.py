@@ -103,6 +103,10 @@ class Notifier:
             except Exception:
                 pass
 
+        pcd = bc.get("price_common_date", "")
+        if pcd:
+            brief.append(f"*Price date*: {pcd}")
+
         no_op = bc.get("no_op", False)
         if no_op:
             brief.append(f"*No-op*: {bc.get('no_op_reason','')}")

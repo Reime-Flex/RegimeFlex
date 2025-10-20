@@ -31,6 +31,51 @@ from .fills import simulate_fills, apply_simulated_fills
 from .storage import ENSStyleAudit
 from .calendar import is_fomc_blackout, is_opex
 from datetime import date
+import pandas as pd
+
+def _last_common_close(long_df: pd.DataFrame, short_df: pd.DataFrame) -> tuple:
+    """Find the latest common date and prices for both dataframes."""
+    # Normalize timestamps to avoid timezone comparison issues
+    long_dates_norm = set(long_df.index.tz_localize(None) if long_df.index.tz is not None else long_df.index)
+    short_dates_norm = set(short_df.index.tz_localize(None) if short_df.index.tz is not None else short_df.index)
+    common_dates_norm = long_dates_norm.intersection(short_dates_norm)
+    
+    if common_dates_norm:
+        # Get the latest common date
+        latest_common_date_norm = max(common_dates_norm)
+        # Find the original timestamp in the dataframe
+        latest_common_date = None
+        for idx in long_df.index:
+            if (idx.tz_localize(None) if idx.tz is not None else idx) == latest_common_date_norm:
+                latest_common_date = idx
+                break
+        
+        long_price = float(long_df.loc[latest_common_date, "close"])
+        short_price = float(short_df.loc[latest_common_date, "close"])
+    else:
+        # Fall back to latest available date for each symbol
+        latest_long_date_norm = max(long_dates_norm)
+        latest_short_date_norm = max(short_dates_norm)
+        latest_common_date_norm = max(latest_long_date_norm, latest_short_date_norm)
+        
+        # Find original timestamps
+        latest_long_date = None
+        latest_short_date = None
+        for idx in long_df.index:
+            if (idx.tz_localize(None) if idx.tz is not None else idx) == latest_long_date_norm:
+                latest_long_date = idx
+                break
+        for idx in short_df.index:
+            if (idx.tz_localize(None) if idx.tz is not None else idx) == latest_short_date_norm:
+                latest_short_date = idx
+                break
+        
+        # Use the latest available price for each symbol
+        long_price = float(long_df.loc[latest_long_date, "close"])
+        short_price = float(short_df.loc[latest_short_date, "close"])
+        latest_common_date = latest_common_date_norm
+    
+    return latest_common_date, long_price, short_price
 
 def _intent_to_dict(it: OrderIntent) -> dict:
     return {
@@ -234,11 +279,16 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
     # Calculate exposure deltas (prev vs desired)
     sides = [exec_map["long"], exec_map["short"]]
     
-    # Build a price map consistent with how you value targets
+    # Build a price map using common date to avoid NaNs
+    common_d, px_long, px_short = _last_common_close(long_df, short_df)
     last_prices_map = {
-        exec_map["long"]:  float(long_df["close"].iloc[-1]),
-        exec_map["short"]: float(short_df["close"].iloc[-1]),
+        exec_map["long"]:  px_long,
+        exec_map["short"]: px_short,
     }
+    
+    # Store common date for reporting/telemetry
+    common_date_str = common_d.strftime("%Y-%m-%d")
+    RF.print_log(f"Price common date → {common_date_str}", "INFO")
     
     # Calculate live equity from reconciled positions
     import math
@@ -306,6 +356,7 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         "turnover_note": tov_note,
         "positions_source": positions_source,
         "equity_now": round(equity_now, 2),
+        "price_common_date": common_date_str,
     })
 
     # Plan intents
