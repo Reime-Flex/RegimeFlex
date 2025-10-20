@@ -1,0 +1,14 @@
+pair: "QQQ_PSQ"        # "QQQ_PSQ" or "TQQQ_SQQQ"
+
+mapping:
+  QQQ_PSQ:
+    long_symbol: "QQQ"
+    short_symbol: "PSQ"
+    long_price_ref: "QQQ"   # which cached series to use for pricing
+    short_price_ref: "PSQ"
+
+  TQQQ_SQQQ:
+    long_symbol: "TQQQ"
+    short_symbol: "SQQQ"
+    long_price_ref: "QQQ"   # sizing proxy; you can change later
+    short_price_ref: "PSQ"

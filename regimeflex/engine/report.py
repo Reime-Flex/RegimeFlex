@@ -76,6 +76,7 @@ def write_daily_html(result: dict, out_dir: str, filename_prefix: str = "daily_r
     html.append(f"<li>OPEX: <b>{bc.get('opex', False)}</b></li>")
     html.append(f"<li>Phase: <b>{_esc(str(bc.get('phase','')))}</b></li>")
     html.append(f"<li>Plan reason: <code>{_esc(str(result.get('breadcrumbs',{}).get('plan_reason','')))}</code></li>")
+    html.append(f"<li>Turnover: <b>{float(bc.get('turnover_frac',0.0))*100:.2f}%</b> <span class='muted'>{_esc(str(bc.get('turnover_note','')))}</span></li>")
     html.append(f"<li>Config hash: <code>{_esc(str(bc.get('config_hash16','')))}</code></li>")
     html.append("</ul>")
     
@@ -88,9 +89,15 @@ def write_daily_html(result: dict, out_dir: str, filename_prefix: str = "daily_r
     def pct(x): 
         try: return f"{float(x)*100:.2f}%"
         except: return "0.00%"
-    for side in ["TQQQ","SQQQ"]:
+    
+    # Use dynamic execution pair labels
+    exec_long = (result.get("breadcrumbs",{}) or {}).get("exec_long","LONG")
+    exec_short = (result.get("breadcrumbs",{}) or {}).get("exec_short","SHORT")
+    sides = [exec_long, exec_short]
+    
+    for side in sides:
         html.append("<tr>"
-                    f"<td>{side}</td>"
+                    f"<td>{_esc(side)}</td>"
                     f"<td>{pct(prev.get(side,0))}</td>"
                     f"<td>{pct(des.get(side,0))}</td>"
                     f"<td>{pct(dlt.get(side,0))}</td>"

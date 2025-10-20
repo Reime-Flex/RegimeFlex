@@ -1,0 +1,4 @@
+start_date: "2024-01-01"   # inclusive, YYYY-MM-DD
+end_date: null             # null → use last bar in cache
+out_dir: "reports/backfill"
+skip_if_exists: true       # don't overwrite existing files

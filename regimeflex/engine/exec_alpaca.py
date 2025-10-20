@@ -5,6 +5,7 @@ import requests
 
 from .exec_planner import OrderIntent
 from .identity import RegimeFlexIdentity as RF
+from .fills_state import append_fill_record
 
 ALPACA_PAPER_URL = "https://paper-api.alpaca.markets"
 ALPACA_LIVE_URL  = "https://api.alpaca.markets"
@@ -58,6 +59,15 @@ class AlpacaExecutor:
         if self.dry_run:
             for p in payloads:
                 RF.print_log(f"[DRY-RUN] Alpaca payload → {p}", "INFO")
+                # Record dry-run fill
+                append_fill_record(
+                    symbol=p.get("symbol", ""),
+                    side=p.get("side", ""),
+                    qty=p.get("qty", 0.0),
+                    status="sim_accepted",
+                    filled_qty=None,
+                    broker_id=None
+                )
             return payloads
 
         # Safety: require creds
@@ -80,6 +90,18 @@ class AlpacaExecutor:
                     resp = r.json()
                     results.append(resp)
                     RF.print_log(f"[LIVE] Accepted order id={resp.get('id','?')} status={resp.get('status','?')}", "SUCCESS")
+                    
+                    # Record live fill
+                    status = str(resp.get("status") or resp.get("response","")).lower()
+                    filled = resp.get("filled_qty") or resp.get("filled_qty_amount") or resp.get("request",{}).get("qty_filled")
+                    append_fill_record(
+                        symbol=p.get("symbol", ""),
+                        side=p.get("side", ""),
+                        qty=p.get("qty", 0.0),
+                        status=status,
+                        filled_qty=filled,
+                        broker_id=resp.get("id")
+                    )
             except Exception as e:
                 RF.print_log(f"Alpaca POST failed: {e}", "ERROR")
                 results.append({"error": str(e), "request": p})

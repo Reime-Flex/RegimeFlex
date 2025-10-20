@@ -13,3 +13,7 @@ circuit_breakers:
   fomc_blackout_days: [-1, 1]    # day before & after
   options_expiry_caution: true
   earnings_blackout: false        # ETFs don't report earnings
+
+turnover:
+  max_pct_of_equity: 0.15   # 15% of equity per day (change this to taste)
+  mode: "clamp"             # "clamp" (scale down) or "skip" (do nothing)

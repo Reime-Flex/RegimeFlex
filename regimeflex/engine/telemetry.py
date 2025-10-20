@@ -88,6 +88,11 @@ class Notifier:
         if reason:
             brief.append(f"*Why*: {reason}")
 
+        tovf = bc.get("turnover_frac", None)
+        tovn = bc.get("turnover_note", "")
+        if tovf is not None:
+            brief.append(f"*Turnover*: {float(tovf)*100:.0f}% — {tovn}")
+
         if verbosity == "full":
             brief.append(f"*Notes*: `{bc.get('target_notes','')}`")
             brief.append(f"*Positions After*: `{after}`")

@@ -14,6 +14,9 @@ from .guardrails import enforce_exposure_caps
 from .exposure_delta import current_exposure_weights, exposure_delta
 from .exposure_reason import compute_exposure_diagnostics, format_plan_reason
 from .symbols import resolve_signal_underlier
+from .instruments import resolve_execution_pair
+from .turnover import enforce_turnover_cap
+from .reconcile_positions import effective_positions_before
 from .timing import eod_ready
 from .fingerprint import compute_fingerprint
 from .telemetry import Notifier, TGCreds
@@ -123,9 +126,14 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
     # log status
     RF.print_log(f"Calendar → FOMC blackout={is_fomc}, OPEX={is_opex_day}", "RISK")
 
-    # Data
-    qqq = get_daily_bars("QQQ")   # execution underlier for TQQQ
-    psq = get_daily_bars("PSQ")   # execution underlier for SQQQ
+    # Resolve execution instruments
+    exec_map = resolve_execution_pair()
+    LONG  = exec_map["long"]       # "QQQ" or "TQQQ"
+    SHORT = exec_map["short"]      # "PSQ" or "SQQQ"
+
+    # Load price refs for sizing/valuations
+    long_df  = get_daily_bars(exec_map["long_ref"])
+    short_df = get_daily_bars(exec_map["short_ref"])
 
     # Signal underlier
     sig_sym, sig_df = resolve_signal_underlier()
@@ -140,30 +148,38 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
     RF.print_log(f"Signal phase → {phase}", "INFO")
 
     # Allocation from signal underlier
-    alloc = exposure_allocator(sig_df)
-    alloc, guard_note = enforce_exposure_caps(alloc)
-    RF.print_log(f"Allocation (guarded) → TQQQ={alloc['TQQQ']:.2f} SQQQ={alloc['SQQQ']:.2f}", "INFO")
+    alloc_raw = exposure_allocator(sig_df)
+    alloc_raw, guard_note = enforce_exposure_caps(alloc_raw)
+    
+    # Remap allocator output to execution symbols
+    alloc = {
+        exec_map["long"]:  float(alloc_raw.get("TQQQ", 0.0)),
+        exec_map["short"]: float(alloc_raw.get("SQQQ", 0.0)),
+    }
+    
+    RF.print_log(f"Allocation (guarded) → {LONG}={alloc[LONG]:.2f} {SHORT}={alloc[SHORT]:.2f}", "INFO")
+
 
     # Calculate target dollar exposures based on allocator
-    tqqq_target_dollars = equity * alloc["TQQQ"]
-    sqqq_target_dollars = equity * alloc["SQQQ"]
+    tqqq_target_dollars = equity * alloc[LONG]
+    sqqq_target_dollars = equity * alloc[SHORT]
     
     # Determine primary target (largest allocation)
     if tqqq_target_dollars > sqqq_target_dollars:
-        target_symbol = "QQQ"  # Use QQQ as TQQQ proxy
+        target_symbol = LONG  # Use dynamic long symbol
         target_dollars = tqqq_target_dollars
         target_direction = "LONG"
     elif sqqq_target_dollars > tqqq_target_dollars:
-        target_symbol = "PSQ"  # Use PSQ as SQQQ proxy
+        target_symbol = SHORT  # Use dynamic short symbol
         target_dollars = sqqq_target_dollars
         target_direction = "LONG"
     else:
-        target_symbol = "QQQ"
+        target_symbol = LONG
         target_dollars = 0.0
         target_direction = "FLAT"
 
     # Create target exposure
-    target_price = float((qqq if target_symbol == "QQQ" else psq)["close"].iloc[-1])
+    target_price = float((long_df if target_symbol == LONG else short_df)["close"].iloc[-1])
     target_shares = target_dollars / target_price if target_price > 0 else 0.0
     
     target = TargetExposure(
@@ -171,7 +187,7 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         direction=target_direction,
         dollars=target_dollars,
         shares=target_shares,
-        notes=f"Exposure allocator: TQQQ={alloc['TQQQ']:.2f} SQQQ={alloc['SQQQ']:.2f}"
+        notes=f"Exposure allocator: {LONG}={alloc[LONG]:.2f} {SHORT}={alloc[SHORT]:.2f}"
     )
     RF.print_log(f"Target → {target.symbol} | {target.direction} | ${target.dollars:,.2f}", "INFO")
 
@@ -196,35 +212,77 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
     crumbs.update({"plan_reason": plan_reason})
 
     # Positions (before)
-    positions_before = load_positions()
-    RF.print_log(f"Positions BEFORE: {positions_before}", "INFO")
+    positions_before_raw = load_positions()
+    RF.print_log(f"Positions BEFORE (raw): {positions_before_raw}", "INFO")
+    
+    # Reconcile effective positions from fills
+    positions_before, pos_note = effective_positions_before(
+        raw_positions_before=positions_before_raw,
+        broker_positions_snapshot=None  # hook for future: pass real broker positions here if available
+    )
+    RF.print_log(f"Positions effective source: {pos_note}", "INFO")
+    RF.print_log(f"Positions BEFORE (effective): {positions_before}", "INFO")
 
     # Calculate exposure deltas (prev vs desired)
+    sides = [exec_map["long"], exec_map["short"]]
+    
     # Build a price map consistent with how you value targets
     last_prices_map = {
-        "TQQQ": float(qqq["close"].iloc[-1]),  # using QQQ close as proxy for sizing baseline
-        "SQQQ": float(psq["close"].iloc[-1]),  # using PSQ close as proxy for sizing baseline
+        exec_map["long"]:  float(long_df["close"].iloc[-1]),
+        exec_map["short"]: float(short_df["close"].iloc[-1]),
     }
 
-    prev_w = current_exposure_weights(positions_before, last_prices_map, equity_ref=equity)
-    dW = exposure_delta(prev_w, alloc)
+    prev_w = current_exposure_weights(positions_before, last_prices_map, equity_ref=equity, sides=sides)
+    dW = exposure_delta(prev_w, alloc, sides=sides)
 
     # Log concise delta line
     RF.print_log(
-        f"Exposure change → TQQQ {prev_w['TQQQ']:.2f}→{alloc['TQQQ']:.2f} (Δ{dW['TQQQ']:+.2f}) | "
-        f"SQQQ {prev_w['SQQQ']:.2f}→{alloc['SQQQ']:.2f} (Δ{dW['SQQQ']:+.2f})",
+        f"Exposure change → {sides[0]} {prev_w[sides[0]]:.2f}→{alloc[sides[0]]:.2f} (Δ{dW[sides[0]]:+.2f}) | "
+        f"{sides[1]} {prev_w[sides[1]]:.2f}→{alloc[sides[1]]:.2f} (Δ{dW[sides[1]]:+.2f})",
         "INFO"
     )
 
+    # Apply turnover cap
+    # Build a positions_before subset keyed the same way as alloc
+    pos_before = {
+        LONG:  float(positions_before.get(LONG, 0.0)),
+        SHORT: float(positions_before.get(SHORT, 0.0)),
+    }
+
+    # Load turnover config
+    risk_cfg = Config(".")._load_yaml("config/risk.yaml") if (Config(".").root / "config/risk.yaml").exists() else {}
+    tov = (risk_cfg.get("turnover") or {})
+    max_frac = float(tov.get("max_pct_of_equity", 0.15))
+    mode = str(tov.get("mode", "clamp"))
+
+    # Apply turnover cap
+    alloc_after_tov, desired_mv_after_tov, turnover_frac, tov_note = enforce_turnover_cap(
+        alloc_weights=alloc,
+        positions_before=pos_before,
+        last_prices=last_prices_map,
+        equity=equity,
+        max_turnover_frac=max_frac,
+        mode=mode,
+    )
+    
+    # Replace alloc with capped version
+    alloc = alloc_after_tov
+    
+    RF.print_log(f"Turnover check → {turnover_frac:.2%} of equity | {tov_note}", "INFO")
+
     # Add to breadcrumbs for report/telemetry
     crumbs.update({
-        "prev_exposure": { "TQQQ": round(prev_w["TQQQ"], 4), "SQQQ": round(prev_w["SQQQ"], 4) },
-        "desired_exposure": { "TQQQ": round(alloc["TQQQ"], 4), "SQQQ": round(alloc["SQQQ"], 4) },
-        "delta_exposure": { "TQQQ": round(dW["TQQQ"], 4), "SQQQ": round(dW["SQQQ"], 4) },
+        "exec_long": LONG,
+        "exec_short": SHORT,
+        "prev_exposure": { s: round(prev_w[s], 4) for s in sides },
+        "desired_exposure": { s: round(alloc[s], 4) for s in sides },
+        "delta_exposure": { s: round(dW[s], 4) for s in sides },
+        "turnover_frac": round(turnover_frac, 4),
+        "turnover_note": tov_note,
     })
 
     # Plan intents
-    price = float((qqq if target.symbol == "QQQ" else psq)["close"].iloc[-1])
+    price = float((long_df if target.symbol == LONG else short_df)["close"].iloc[-1])
     intents: List[OrderIntent] = plan_orders(
         current_positions=positions_before,
         target=target,
@@ -299,8 +357,8 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
 
     # Last prices for valuation
     last_prices = {
-        "QQQ": float(qqq["close"].iloc[-1]),
-        "PSQ": float(psq["close"].iloc[-1]),
+        LONG: float(long_df["close"].iloc[-1]),
+        SHORT: float(short_df["close"].iloc[-1]),
     }
 
     snap = snapshot_from_positions(positions_after, last_prices, equity_ref)
