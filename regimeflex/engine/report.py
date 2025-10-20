@@ -44,6 +44,8 @@ def write_daily_html(result: dict, out_dir: str, filename_prefix: str = "daily_r
       .warn{background:rgba(245,158,11,.10);color:var(--warn);border:1px solid rgba(245,158,11,.35)}
       .fail{background:rgba(239,68,68,.10);color:var(--fail);border:1px solid rgba(239,68,68,.35)}
       table{border-collapse:collapse;width:100%} th,td{padding:6px 8px;border-bottom:1px solid #e5e7eb;text-align:left}
+      .footer{margin-top:18px;font-size:12px;color:#475569}
+      .footer code{background:#e2e8f0;padding:1px 4px;border-radius:4px}
     </style>
     """)
     html.append("</head><body>")
@@ -172,6 +174,21 @@ def write_daily_html(result: dict, out_dir: str, filename_prefix: str = "daily_r
         html.append(f"<li>QQQ — MV: ${float(snap.get('QQQ_mv',0.0)):.2f} | Wgt: {float(snap.get('QQQ_w',0.0))*100:.2f}%</li>")
         html.append(f"<li>PSQ — MV: ${float(snap.get('PSQ_mv',0.0)):.2f} | Wgt: {float(snap.get('PSQ_w',0.0))*100:.2f}%</li>")
         html.append("</ul>")
+    html.append("</div>")
+
+    # Footer: duration + versions
+    bc = result.get("breadcrumbs",{}) or {}
+    dur = float(bc.get("run_duration_sec", 0.0))
+    vers = bc.get("versions", {}) or {}
+    html.append("<div class='footer'>")
+    html.append(f"⏱️ Run duration: <b>{dur:.3f}s</b><br/>")
+    if vers:
+        html.append("🔧 Runtime: ")
+        html.append(f"<code>python {vers.get('python','')}</code> · ")
+        html.append(f"<code>pandas {vers.get('pandas','')}</code> · ")
+        html.append(f"<code>numpy {vers.get('numpy','')}</code> · ")
+        html.append(f"<code>alpaca_trade_api {vers.get('alpaca_trade_api','')}</code> · ")
+        html.append(f"<code>python-telegram-bot {vers.get('python_telegram_bot','')}</code>")
     html.append("</div>")
 
     html.append("<div class='muted'>© RegimeFlex</div></body></html>")

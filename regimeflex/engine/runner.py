@@ -11,6 +11,8 @@ from .logrotate import rotate_all
 from .pnl import snapshot_from_positions, append_snapshot_csv
 from .exposure import exposure_allocator, classify_phase
 from .guardrails import enforce_exposure_caps
+import time
+from .versioning import runtime_versions
 from .exposure_delta import current_exposure_weights, exposure_delta
 from .exposure_reason import compute_exposure_diagnostics, format_plan_reason
 from .symbols import resolve_signal_underlier
@@ -89,6 +91,7 @@ def _intent_to_dict(it: OrderIntent) -> dict:
     }
 
 def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trade_value: float = 200.0) -> Dict[str, any]:
+    t0 = time.perf_counter()
     RF.print_log("RegimeFlex offline daily cycle starting", "INFO")
     
     # Track no-op reason for days with zero intents
@@ -105,12 +108,20 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
     if is_killed():
         RF.print_log("KILL-SWITCH active — aborting run before any actions", "RISK")
         noop_reason = "KILL_SWITCH"
+        duration_sec = round(time.perf_counter() - t0, 3)
+        vers = runtime_versions()
         return {
             "target": {"symbol": "NA", "direction": "FLAT", "dollars": 0.0, "shares": 0.0, "notes": "KILL"},
             "positions_before": load_positions(),
             "intents": [],
             "positions_after": load_positions(),
-            "breadcrumbs": {"no_op": True, "no_op_reason": noop_reason, "config_hash16": fp["sha256_16"]},
+            "breadcrumbs": {
+                "no_op": True, 
+                "no_op_reason": noop_reason, 
+                "config_hash16": fp["sha256_16"],
+                "run_duration_sec": duration_sec,
+                "versions": vers,
+            },
             "snapshot": {},
             "config_fingerprint": fp
         }
@@ -121,12 +132,21 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
     if not ok_time:
         # Exit cleanly before any actions
         noop_reason = "EOD_GUARD_TOO_EARLY"
+        duration_sec = round(time.perf_counter() - t0, 3)
+        vers = runtime_versions()
         return {
             "target": {"symbol": "NA", "direction": "FLAT", "dollars": 0.0, "shares": 0.0, "notes": "EOD_GUARD"},
             "positions_before": load_positions(),   # optional: show current
             "intents": [],
             "positions_after": load_positions(),
-            "breadcrumbs": {"no_op": True, "no_op_reason": noop_reason, "eod_guard": why, "config_hash16": fp["sha256_16"]},
+            "breadcrumbs": {
+                "no_op": True, 
+                "no_op_reason": noop_reason, 
+                "eod_guard": why, 
+                "config_hash16": fp["sha256_16"],
+                "run_duration_sec": duration_sec,
+                "versions": vers,
+            },
             "snapshot": {},
             "config_fingerprint": fp
         }
@@ -373,6 +393,8 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         "price_staleness_days": lag_days,
         "price_stale": bool(is_stale),
         "price_stale_note": f"{lag_days}d old (> {max_days_ok}d)" if is_stale else "fresh",
+        "run_duration_sec": round(time.perf_counter() - t0, 3),
+        "versions": runtime_versions(),
     })
 
     # Plan intents
@@ -469,6 +491,10 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
 
     RF.print_log(f"Positions AFTER: {positions_after}", "INFO")
     RF.print_log("Offline daily cycle complete", "SUCCESS")
+    
+    # Log run duration
+    duration_sec = round(time.perf_counter() - t0, 3)
+    RF.print_log(f"Run duration → {duration_sec:.3f}s", "INFO")
 
     # Daily PnL/Exposure snapshot
     try:

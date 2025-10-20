@@ -116,6 +116,13 @@ class Notifier:
         if no_op:
             brief.append(f"*No-op*: {bc.get('no_op_reason','')}")
 
+        dur = bc.get("run_duration_sec", None)
+        if dur is not None:
+            try:
+                brief.append(f"*Run*: {float(dur):.2f}s")
+            except Exception:
+                pass
+
         if verbosity == "full":
             brief.append(f"*Notes*: `{bc.get('target_notes','')}`")
             brief.append(f"*Positions After*: `{after}`")
