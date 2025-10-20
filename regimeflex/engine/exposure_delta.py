@@ -1,6 +1,7 @@
 # engine/exposure_delta.py
 from __future__ import annotations
 from typing import Dict, Iterable
+import pandas as pd
 
 def current_exposure_weights(
     positions: Dict[str, float],
@@ -19,6 +20,9 @@ def current_exposure_weights(
     for s in sides:
         sh = float(positions.get(s, 0.0))
         px = float(prices.get(s, 0.0))
+        # Handle NaN prices by treating as 0.0
+        if pd.isna(px):
+            px = 0.0
         mv = sh * px
         out[s] = mv / float(equity_ref)
     return out

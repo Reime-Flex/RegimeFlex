@@ -1,6 +1,7 @@
 # engine/turnover.py
 from __future__ import annotations
 from typing import Dict, Tuple
+import pandas as pd
 from .identity import RegimeFlexIdentity as RF
 
 def _mv_from_weights(weights: Dict[str, float], equity: float) -> Dict[str, float]:
@@ -35,7 +36,12 @@ def enforce_turnover_cap(
     current_mv = {}
     for sym, sh in positions_before.items():
         if sym in last_prices:
-            current_mv[sym] = float(sh) * float(last_prices[sym])
+            price = float(last_prices[sym])
+            # Handle NaN prices by treating as 0.0
+            if pd.isna(price):
+                current_mv[sym] = 0.0
+            else:
+                current_mv[sym] = float(sh) * price
     # ensure both sides exist
     for sym in alloc_weights.keys():
         current_mv.setdefault(sym, 0.0)
