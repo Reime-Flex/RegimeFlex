@@ -19,6 +19,7 @@ from .symbols import resolve_signal_underlier
 from .instruments import resolve_execution_pair
 from .turnover import enforce_turnover_cap
 from .reconcile_positions import effective_positions_before
+from .report_csv import write_change_report
 from .timing import eod_ready
 from .fingerprint import compute_fingerprint
 from .telemetry import Notifier, TGCreds
@@ -110,7 +111,7 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         noop_reason = "KILL_SWITCH"
         duration_sec = round(time.perf_counter() - t0, 3)
         vers = runtime_versions()
-        return {
+        result = {
             "target": {"symbol": "NA", "direction": "FLAT", "dollars": 0.0, "shares": 0.0, "notes": "KILL"},
             "positions_before": load_positions(),
             "intents": [],
@@ -125,6 +126,15 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
             "snapshot": {},
             "config_fingerprint": fp
         }
+        
+        # Export CSV change report for early exit
+        try:
+            csv_path = write_change_report(result)
+            RF.print_log(f"CSV change report saved → {csv_path}", "INFO")
+        except Exception as e:
+            RF.print_log(f"CSV export failed: {e}", "ERROR")
+            
+        return result
 
     # EOD timing guard
     ok_time, why = eod_ready(minutes_to_close)
@@ -134,7 +144,7 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         noop_reason = "EOD_GUARD_TOO_EARLY"
         duration_sec = round(time.perf_counter() - t0, 3)
         vers = runtime_versions()
-        return {
+        result = {
             "target": {"symbol": "NA", "direction": "FLAT", "dollars": 0.0, "shares": 0.0, "notes": "EOD_GUARD"},
             "positions_before": load_positions(),   # optional: show current
             "intents": [],
@@ -150,6 +160,15 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
             "snapshot": {},
             "config_fingerprint": fp
         }
+        
+        # Export CSV change report for early exit
+        try:
+            csv_path = write_change_report(result)
+            RF.print_log(f"CSV change report saved → {csv_path}", "INFO")
+        except Exception as e:
+            RF.print_log(f"CSV export failed: {e}", "ERROR")
+            
+        return result
 
     # Decision window ping (when within EOD window)
     tele_cfg = (Config(".").telemetry or {})
@@ -516,7 +535,8 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
     if logs_cfg.get("rotate_on_run", True):
         rotate_all()
 
-    return {
+    # Build final result for return
+    result = {
         "target": asdict(target),
         "positions_before": positions_before,
         "intents": [_intent_to_dict(it) for it in intents],
@@ -525,3 +545,12 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         "snapshot": snap,
         "config_fingerprint": fp
     }
+
+    # Export CSV change report
+    try:
+        csv_path = write_change_report(result)
+        RF.print_log(f"CSV change report saved → {csv_path}", "INFO")
+    except Exception as e:
+        RF.print_log(f"CSV export failed: {e}", "ERROR")
+
+    return result

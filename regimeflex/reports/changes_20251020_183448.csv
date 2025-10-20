@@ -1,0 +1,11 @@
+symbol,prev_weight,desired_weight,delta_weight
+
+# Meta
+equity_now,0.0
+turnover_frac,0.0
+turnover_note,
+no_op,True
+no_op_reason,KILL_SWITCH
+positions_source,
+price_common_date,
+price_staleness,
