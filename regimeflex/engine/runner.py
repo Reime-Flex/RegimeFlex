@@ -20,6 +20,7 @@ from .instruments import resolve_execution_pair
 from .turnover import enforce_turnover_cap
 from .reconcile_positions import effective_positions_before
 from .report_csv import write_change_report
+from .run_summary import append_run_summary
 from .timing import eod_ready
 from .fingerprint import compute_fingerprint
 from .telemetry import Notifier, TGCreds
@@ -134,6 +135,13 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         except Exception as e:
             RF.print_log(f"CSV export failed: {e}", "ERROR")
             
+        # Append run summary JSONL for early exit
+        try:
+            path = append_run_summary(result)
+            RF.print_log(f"Run summary appended → {path}", "INFO")
+        except Exception as e:
+            RF.print_log(f"Run summary append failed: {e}", "ERROR")
+            
         return result
 
     # EOD timing guard
@@ -167,6 +175,13 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
             RF.print_log(f"CSV change report saved → {csv_path}", "INFO")
         except Exception as e:
             RF.print_log(f"CSV export failed: {e}", "ERROR")
+            
+        # Append run summary JSONL for early exit
+        try:
+            path = append_run_summary(result)
+            RF.print_log(f"Run summary appended → {path}", "INFO")
+        except Exception as e:
+            RF.print_log(f"Run summary append failed: {e}", "ERROR")
             
         return result
 
@@ -552,5 +567,12 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         RF.print_log(f"CSV change report saved → {csv_path}", "INFO")
     except Exception as e:
         RF.print_log(f"CSV export failed: {e}", "ERROR")
+
+    # Append run summary JSONL
+    try:
+        path = append_run_summary(result)
+        RF.print_log(f"Run summary appended → {path}", "INFO")
+    except Exception as e:
+        RF.print_log(f"Run summary append failed: {e}", "ERROR")
 
     return result

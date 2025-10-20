@@ -1,0 +1,13 @@
+symbol,prev_weight,desired_weight,delta_weight
+PSQ,0.0,0.0,0.0
+QQQ,1.2482,1.0982,-0.2482
+
+# Meta
+equity_now,62410.5
+turnover_frac,0.2482
+turnover_note,turnover 0.248>0.150 -> clamp×0.604
+no_op,False
+no_op_reason,
+positions_source,local_fills_applied
+price_common_date,2025-10-19
+price_staleness,fresh
