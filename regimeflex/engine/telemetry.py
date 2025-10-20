@@ -107,6 +107,11 @@ class Notifier:
         if pcd:
             brief.append(f"*Price date*: {pcd}")
 
+        stale = bc.get("price_stale", False)
+        if stale:
+            lag = bc.get("price_staleness_days", 0)
+            brief.append(f"*Data stale*: {int(lag)}d old")
+
         no_op = bc.get("no_op", False)
         if no_op:
             brief.append(f"*No-op*: {bc.get('no_op_reason','')}")

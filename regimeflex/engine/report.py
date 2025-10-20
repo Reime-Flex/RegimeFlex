@@ -85,10 +85,22 @@ def write_daily_html(result: dict, out_dir: str, filename_prefix: str = "daily_r
     html.append(f"<li>Positions source: <b>{_esc(str(bc.get('positions_source','')))}</b></li>")
     html.append(f"<li>Equity (live): <b>${float((bc or {}).get('equity_now',0.0)):.2f}</b></li>")
     html.append(f"<li>Price common date: <b>{_esc(str(bc.get('price_common_date','')))}</b></li>")
+    
+    # Show price staleness information
+    stale = (result.get("breadcrumbs",{}) or {}).get("price_stale", False)
+    lag  = (result.get("breadcrumbs",{}) or {}).get("price_staleness_days", 0)
+    note = (result.get("breadcrumbs",{}) or {}).get("price_stale_note", "")
+    
+    html.append(f"<li>Price staleness: <b>{int(lag)}d</b> <span class='muted'>{_esc(str(note))}</span></li>")
+    
     html.append(f"<li>Plan reason: <code>{_esc(str(result.get('breadcrumbs',{}).get('plan_reason','')))}</code></li>")
     html.append(f"<li>Turnover: <b>{float(bc.get('turnover_frac',0.0))*100:.2f}%</b> <span class='muted'>{_esc(str(bc.get('turnover_note','')))}</span></li>")
     html.append(f"<li>Config hash: <code>{_esc(str(bc.get('config_hash16','')))}</code></li>")
     html.append("</ul>")
+    
+    # Optional: small amber badge if stale
+    if stale:
+        html.append("<div class='banner warn'>⚠️ Data staleness: prices are older than configured threshold</div>")
     
     # Exposure delta mini-table
     prev = (result.get("breadcrumbs",{}) or {}).get("prev_exposure", {})

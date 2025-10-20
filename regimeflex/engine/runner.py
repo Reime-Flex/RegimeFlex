@@ -290,6 +290,19 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
     common_date_str = common_d.strftime("%Y-%m-%d")
     RF.print_log(f"Price common date → {common_date_str}", "INFO")
     
+    # Check data staleness
+    from datetime import datetime, timezone
+    
+    data_cfg = Config(".")._load_yaml("config/data.yaml")
+    max_days_ok = int(((data_cfg.get("staleness") or {}).get("max_days_ok", 3)))
+    
+    today = datetime.now(timezone.utc).date()
+    lag_days = (today - common_d.date()).days
+    is_stale = lag_days > max_days_ok
+    
+    if is_stale:
+        RF.print_log(f"Price data stale: {lag_days}d old (>{max_days_ok}d)", "RISK")
+    
     # Calculate live equity from reconciled positions
     import math
     def _safe(f): 
@@ -357,6 +370,9 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         "positions_source": positions_source,
         "equity_now": round(equity_now, 2),
         "price_common_date": common_date_str,
+        "price_staleness_days": lag_days,
+        "price_stale": bool(is_stale),
+        "price_stale_note": f"{lag_days}d old (> {max_days_ok}d)" if is_stale else "fresh",
     })
 
     # Plan intents
