@@ -45,6 +45,9 @@ def _intent_to_dict(it: OrderIntent) -> dict:
 
 def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trade_value: float = 200.0) -> Dict[str, any]:
     RF.print_log("RegimeFlex offline daily cycle starting", "INFO")
+    
+    # Track no-op reason for days with zero intents
+    noop_reason = None
 
     # Config fingerprint
     fp = compute_fingerprint(".")
@@ -56,12 +59,13 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
 
     if is_killed():
         RF.print_log("KILL-SWITCH active — aborting run before any actions", "RISK")
+        noop_reason = "KILL_SWITCH"
         return {
             "target": {"symbol": "NA", "direction": "FLAT", "dollars": 0.0, "shares": 0.0, "notes": "KILL"},
-            "positions_before": {},
+            "positions_before": load_positions(),
             "intents": [],
-            "positions_after": {},
-            "breadcrumbs": {"kill_switch": True, "config_hash16": fp["sha256_16"]},
+            "positions_after": load_positions(),
+            "breadcrumbs": {"no_op": True, "no_op_reason": noop_reason, "config_hash16": fp["sha256_16"]},
             "snapshot": {},
             "config_fingerprint": fp
         }
@@ -71,12 +75,13 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
     RF.print_log(f"EOD timing check → {why}", "RISK" if not ok_time else "INFO")
     if not ok_time:
         # Exit cleanly before any actions
+        noop_reason = "EOD_GUARD_TOO_EARLY"
         return {
             "target": {"symbol": "NA", "direction": "FLAT", "dollars": 0.0, "shares": 0.0, "notes": "EOD_GUARD"},
             "positions_before": load_positions(),   # optional: show current
             "intents": [],
             "positions_after": load_positions(),
-            "breadcrumbs": {"eod_guard": why, "config_hash16": fp["sha256_16"]},
+            "breadcrumbs": {"no_op": True, "no_op_reason": noop_reason, "eod_guard": why, "config_hash16": fp["sha256_16"]},
             "snapshot": {},
             "config_fingerprint": fp
         }
@@ -222,6 +227,9 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
     )
     RF.print_log(f"Positions effective source: {pos_note}", "INFO")
     RF.print_log(f"Positions BEFORE (effective): {positions_before}", "INFO")
+    
+    # Store positions source for reporting
+    positions_source = pos_note  # 'broker_snapshot' | 'local_fills_applied' | 'raw'
 
     # Calculate exposure deltas (prev vs desired)
     sides = [exec_map["long"], exec_map["short"]]
@@ -231,6 +239,23 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         exec_map["long"]:  float(long_df["close"].iloc[-1]),
         exec_map["short"]: float(short_df["close"].iloc[-1]),
     }
+    
+    # Calculate live equity from reconciled positions
+    import math
+    def _safe(f): 
+        try:
+            f = float(f); 
+            return f if (f == f and math.isfinite(f)) else 0.0
+        except Exception: 
+            return 0.0
+
+    # live equity (gross) from reconciled positions
+    equity_now = 0.0
+    for sym, sh in positions_before.items():
+        px = _safe(last_prices_map.get(sym))
+        equity_now += abs(_safe(sh) * px)
+
+    RF.print_log(f"Positions source → {positions_source} | equity_now=${equity_now:,.2f}", "INFO")
 
     prev_w = current_exposure_weights(positions_before, last_prices_map, equity_ref=equity, sides=sides)
     dW = exposure_delta(prev_w, alloc, sides=sides)
@@ -279,6 +304,8 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         "delta_exposure": { s: round(dW[s], 4) for s in sides },
         "turnover_frac": round(turnover_frac, 4),
         "turnover_note": tov_note,
+        "positions_source": positions_source,
+        "equity_now": round(equity_now, 2),
     })
 
     # Plan intents
@@ -291,6 +318,33 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         min_trade_value=min_trade_value,
         emergency_override=False,
     )
+
+    # If no intents, derive a reason so we can explain the no-op day.
+    if not intents:
+        # 1) If turnover rule said skip
+        tov_note = crumbs.get("turnover_note", "")
+        if isinstance(tov_note, str) and "skip" in tov_note.lower():
+            noop_reason = "TURNOVER_SKIP"
+        else:
+            # 2) If desired == current exposure within epsilon → no change
+            sides = [exec_map["long"], exec_map["short"]]
+            try:
+                eps = 1e-4
+                desired_w = [float(alloc.get(s, 0.0)) for s in sides]
+                # recompute prev_w against equity_now to avoid key/equity drift
+                prev_w_map = current_exposure_weights(positions_before, last_prices_map, equity_now, sides)
+                prev_w = [float(prev_w_map.get(s, 0.0)) for s in sides]
+                if all(abs(d - p) <= eps for d, p in zip(desired_w, prev_w)):
+                    noop_reason = "NO_CHANGE"
+                else:
+                    # 3) Otherwise assume sizing/threshold filtered out tiny trade(s)
+                    noop_reason = "SIZING_FILTER"
+            except Exception:
+                noop_reason = "NO_CHANGE"
+
+        crumbs.update({"no_op": True, "no_op_reason": noop_reason})
+    else:
+        crumbs.update({"no_op": False})
 
     audit = ENSStyleAudit()
 

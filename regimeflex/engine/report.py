@@ -64,6 +64,13 @@ def write_daily_html(result: dict, out_dir: str, filename_prefix: str = "daily_r
     html.append(f"<li>Notional: <b>${t.get('dollars',0.0):,.2f}</b></li>")
     html.append(f"<li>Shares: <b>{t.get('shares',0.0):,.4f}</b></li>")
     html.append(f"<li class='muted'>Notes: <code>{_esc(t.get('notes',''))}</code></li>")
+    
+    # Show no-op reason if present
+    no_op = bool((result.get("breadcrumbs",{}) or {}).get("no_op", False))
+    if no_op:
+        reason = (result.get("breadcrumbs",{}) or {}).get("no_op_reason","")
+        html.append(f"<div class='muted'>No-op day: <b>{_esc(str(reason))}</b></div>")
+    
     html.append("</ul>")
     html.append("</div>")
 
@@ -75,6 +82,8 @@ def write_daily_html(result: dict, out_dir: str, filename_prefix: str = "daily_r
     html.append(f"<li>FOMC blackout: <b>{bc.get('fomc_blackout', False)}</b></li>")
     html.append(f"<li>OPEX: <b>{bc.get('opex', False)}</b></li>")
     html.append(f"<li>Phase: <b>{_esc(str(bc.get('phase','')))}</b></li>")
+    html.append(f"<li>Positions source: <b>{_esc(str(bc.get('positions_source','')))}</b></li>")
+    html.append(f"<li>Equity (live): <b>${float((bc or {}).get('equity_now',0.0)):.2f}</b></li>")
     html.append(f"<li>Plan reason: <code>{_esc(str(result.get('breadcrumbs',{}).get('plan_reason','')))}</code></li>")
     html.append(f"<li>Turnover: <b>{float(bc.get('turnover_frac',0.0))*100:.2f}%</b> <span class='muted'>{_esc(str(bc.get('turnover_note','')))}</span></li>")
     html.append(f"<li>Config hash: <code>{_esc(str(bc.get('config_hash16','')))}</code></li>")

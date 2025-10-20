@@ -93,6 +93,20 @@ class Notifier:
         if tovf is not None:
             brief.append(f"*Turnover*: {float(tovf)*100:.0f}% — {tovn}")
 
+        src = bc.get("positions_source", "")
+        enow = bc.get("equity_now", None)
+        if src:
+            brief.append(f"*Positions*: {src}")
+        if enow is not None:
+            try:
+                brief.append(f"*Equity (live)*: ${float(enow):,.0f}")
+            except Exception:
+                pass
+
+        no_op = bc.get("no_op", False)
+        if no_op:
+            brief.append(f"*No-op*: {bc.get('no_op_reason','')}")
+
         if verbosity == "full":
             brief.append(f"*Notes*: `{bc.get('target_notes','')}`")
             brief.append(f"*Positions After*: `{after}`")
