@@ -21,6 +21,7 @@ from .turnover import enforce_turnover_cap
 from .reconcile_positions import effective_positions_before
 from .report_csv import write_change_report
 from .run_summary import append_run_summary
+from .order_preview import write_order_preview
 from .timing import eod_ready
 from .fingerprint import compute_fingerprint
 from .telemetry import Notifier, TGCreds
@@ -441,6 +442,26 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         min_trade_value=min_trade_value,
         emergency_override=False,
     )
+
+    # Order preview CSV (when dry_run=true)
+    broker_cfg = Config(".")._load_yaml("config/broker.yaml")
+    dry_run_flag = bool((broker_cfg.get("alpaca") or {}).get("dry_run", True))
+    
+    if dry_run_flag and intents:
+        preview_meta = {
+            "exec_long": crumbs.get("exec_long", ""),
+            "exec_short": crumbs.get("exec_short", ""),
+            "price_common_date": crumbs.get("price_common_date", ""),
+            "turnover_note": crumbs.get("turnover_note", ""),
+            "no_op": crumbs.get("no_op", False),
+            "no_op_reason": crumbs.get("no_op_reason", ""),
+            "config_hash16": crumbs.get("config_hash16", ""),
+        }
+        try:
+            p = write_order_preview([_intent_to_dict(it) for it in intents], meta=preview_meta)
+            RF.print_log(f"Order preview CSV saved → {p}", "INFO")
+        except Exception as e:
+            RF.print_log(f"Order preview CSV failed: {e}", "ERROR")
 
     # If no intents, derive a reason so we can explain the no-op day.
     if not intents:
