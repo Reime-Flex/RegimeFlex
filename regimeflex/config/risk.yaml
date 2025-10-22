@@ -22,3 +22,7 @@ cadence:
   enabled: true         # turn guard on/off
   min_days_between: 1   # e.g., 1=don't trade the same symbol on consecutive sessions
   symbols: ["QQQ","PSQ"]  # which symbols to enforce; leave empty to apply to all execution symbols
+
+exposure_threshold:
+  enabled: true
+  min_delta_abs: 0.01    # skip if |desired – prev| < 1 %

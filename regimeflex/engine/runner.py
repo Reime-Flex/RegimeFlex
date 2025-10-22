@@ -502,6 +502,34 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         "cadence_min_days": cad_min_days,
     })
 
+    # --- Exposure delta filter ---
+    ex_cfg = (risk_cfg.get("exposure_threshold") or {})
+    ex_enabled = bool(ex_cfg.get("enabled", True))
+    ex_min = float(ex_cfg.get("min_delta_abs", 0.01))
+
+    if ex_enabled and intents:
+        kept, filtered = [], []
+        for it in intents:
+            sym = str(it.get("symbol", "")).upper()
+            d_prev = float((crumbs.get("prev_exposure") or {}).get(sym, 0.0))
+            d_new  = float((crumbs.get("desired_exposure") or {}).get(sym, 0.0))
+            delta  = abs(d_new - d_prev)
+            if delta < ex_min:
+                filtered.append(it)
+            else:
+                kept.append(it)
+        if filtered and not kept:
+            crumbs.update({"no_op": True, "no_op_reason": "DELTA_BELOW_THRESHOLD"})
+            RF.print_log(f"Exposure filter: all intents below {ex_min:.2%}, skipped.", "RISK")
+        elif filtered:
+            RF.print_log(f"Exposure filter: {len(filtered)} of {len(intents)} intents below {ex_min:.2%}, skipped.", "RISK")
+        intents = kept
+
+    # Add exposure threshold info to breadcrumbs
+    crumbs.update({
+        "exposure_min_delta": ex_min,
+    })
+
     # If no intents, derive a reason so we can explain the no-op day.
     if not intents:
         # 1) If turnover rule said skip
