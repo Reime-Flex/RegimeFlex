@@ -110,6 +110,8 @@ def write_daily_html(result: dict, out_dir: str, filename_prefix: str = "daily_r
     
     html.append(f"<li>TSI (avg {win}d): <b>{avg*100:.2f}%</b> over {cnt} day(s) "
                 f"{'(warn > ' + f'{thr*100:.0f}%' + ')' if warn else ''}</li>")
+    html.append(f"<li>Coalesced flip: <b>{str((result.get('breadcrumbs',{}) or {}).get('coalesced_flip', False))}</b> "
+                f"<span class='muted'>{_esc(str((result.get('breadcrumbs',{}) or {}).get('coalesce_note','')))}</span></li>")
     html.append("</ul>")
     
     # Optional: small amber badge if stale

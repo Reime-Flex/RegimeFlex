@@ -26,3 +26,9 @@ cadence:
 exposure_threshold:
   enabled: true
   min_delta_abs: 0.01    # skip if |desired – prev| < 1 %
+
+coalescing:
+  enabled: true
+  close_dust_shares: 1.0         # if remaining position < this, treat as dust → single intent
+  min_open_notional: 200.0       # don't open new side if notional < this (pairs with your constraints)
+  prefer_single_leg_if_net_small: true  # if sell_to_zero and buy_new nearly cancel, emit only larger leg

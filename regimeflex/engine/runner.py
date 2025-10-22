@@ -24,6 +24,7 @@ from .run_summary import append_run_summary
 from .order_preview import write_order_preview
 from .trade_cadence import days_since_trade
 from .metrics import compute_tsi
+from .plan_coalesce import coalesce_side_flip
 from .timing import eod_ready
 from .fingerprint import compute_fingerprint
 from .telemetry import Notifier, TGCreds
@@ -530,6 +531,29 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
     crumbs.update({
         "exposure_min_delta": ex_min,
     })
+
+    # Coalescing (side flip optimization)
+    risk_cfg = Config(".")._load_yaml("config/risk.yaml") if (Config(".").root / "config/risk.yaml").exists() else {}
+    coal = (risk_cfg.get("coalescing") or {})
+    if bool(coal.get("enabled", True)):
+        c_intents, c_note = coalesce_side_flip(
+            positions_before=positions_before,
+            target_weights=alloc,
+            prices=last_prices_map,
+            equity=equity_now,
+            long_sym=exec_map["long"],
+            short_sym=exec_map["short"],
+            close_dust_shares=float(coal.get("close_dust_shares", 1.0)),
+            min_open_notional=float(coal.get("min_open_notional", 200.0)),
+            prefer_single_leg_if_net_small=bool(coal.get("prefer_single_leg_if_net_small", True)),
+        )
+        if c_intents:
+            RF.print_log(f"Coalesced flip → {c_note}; intents={len(c_intents)}", "INFO")
+            # Bypass normal planner; let downstream sizing/order-type/TIF attach later if you centralize that logic.
+            intents = c_intents
+            crumbs.update({"coalesced_flip": True, "coalesce_note": c_note})
+        else:
+            crumbs.update({"coalesced_flip": False, "coalesce_note": c_note})
 
     # If no intents, derive a reason so we can explain the no-op day.
     if not intents:
