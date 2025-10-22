@@ -123,6 +123,16 @@ class Notifier:
             except Exception:
                 pass
 
+        # TSI (Turnover Stability Index)
+        avg = bc.get("tsi_avg_turnover", None)
+        win = bc.get("tsi_window_days", 7)
+        warn = bc.get("tsi_warn", False)
+        if avg is not None:
+            line = f"*TSI*: {float(avg)*100:.0f}% avg over {int(win)}d"
+            if warn:
+                line += " ⚠️"
+            brief.append(line)
+
         if verbosity == "full":
             brief.append(f"*Notes*: `{bc.get('target_notes','')}`")
             brief.append(f"*Positions After*: `{after}`")

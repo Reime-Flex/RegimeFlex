@@ -23,6 +23,7 @@ from .report_csv import write_change_report
 from .run_summary import append_run_summary
 from .order_preview import write_order_preview
 from .trade_cadence import days_since_trade
+from .metrics import compute_tsi
 from .timing import eod_ready
 from .fingerprint import compute_fingerprint
 from .telemetry import Notifier, TGCreds
@@ -662,5 +663,25 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         RF.print_log(f"Run summary appended → {path}", "INFO")
     except Exception as e:
         RF.print_log(f"Run summary append failed: {e}", "ERROR")
+
+    # Metrics: Turnover Stability Index (TSI)
+    met_cfg = Config(".")._load_yaml("config/metrics.yaml") if (Config(".").root / "config/metrics.yaml").exists() else {}
+    tsi_cfg = (met_cfg.get("turnover_stability") or {})
+    tsi_win = int(tsi_cfg.get("window_days", 7))
+    tsi_warn = float(tsi_cfg.get("warn_threshold", 0.25))
+
+    tsi = compute_tsi(tsi_win)
+    tsi_warn_flag = bool(tsi["avg_turnover"] > tsi_warn)
+
+    crumbs.update({
+        "tsi_window_days": tsi_win,
+        "tsi_avg_turnover": round(tsi["avg_turnover"], 4),
+        "tsi_days_count": tsi["count_days"],
+        "tsi_warn": tsi_warn_flag,
+        "tsi_warn_threshold": tsi_warn,
+    })
+
+    if tsi_warn_flag:
+        RF.print_log(f"TSI warn: avg turnover {tsi['avg_turnover']:.2%} over {tsi_win}d exceeds {tsi_warn:.2%}", "RISK")
 
     return result

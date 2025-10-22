@@ -1,0 +1,3 @@
+turnover_stability:
+  window_days: 7        # lookback window for averaging turnover
+  warn_threshold: 0.25  # warn if avg turnover > 25% of equity/day

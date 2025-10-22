@@ -100,11 +100,25 @@ def write_daily_html(result: dict, out_dir: str, filename_prefix: str = "daily_r
     html.append(f"<li>Config hash: <code>{_esc(str(bc.get('config_hash16','')))}</code></li>")
     html.append(f"<li>Cadence: <b>{'on' if (result.get('breadcrumbs',{}) or {}).get('cadence_enabled') else 'off'}</b> (min {int((result.get('breadcrumbs',{}) or {}).get('cadence_min_days',0))}d)</li>")
     html.append(f"<li>Min Δ exposure: <b>{result.get('breadcrumbs',{}).get('exposure_min_delta','')}</b></li>")
+    
+    # TSI (Turnover Stability Index)
+    avg = float((result.get("breadcrumbs",{}) or {}).get("tsi_avg_turnover", 0.0))
+    win = int((result.get("breadcrumbs",{}) or {}).get("tsi_window_days", 7))
+    cnt = int((result.get("breadcrumbs",{}) or {}).get("tsi_days_count", 0))
+    thr = float((result.get("breadcrumbs",{}) or {}).get("tsi_warn_threshold", 0.25))
+    warn = bool((result.get("breadcrumbs",{}) or {}).get("tsi_warn", False))
+    
+    html.append(f"<li>TSI (avg {win}d): <b>{avg*100:.2f}%</b> over {cnt} day(s) "
+                f"{'(warn > ' + f'{thr*100:.0f}%' + ')' if warn else ''}</li>")
     html.append("</ul>")
     
     # Optional: small amber badge if stale
     if stale:
         html.append("<div class='banner warn'>⚠️ Data staleness: prices are older than configured threshold</div>")
+    
+    # Optional amber banner if TSI warning
+    if warn:
+        html.append("<div class='banner warn'>⚠️ Elevated turnover: 7-day average above threshold</div>")
     
     # Exposure delta mini-table
     prev = (result.get("breadcrumbs",{}) or {}).get("prev_exposure", {})
