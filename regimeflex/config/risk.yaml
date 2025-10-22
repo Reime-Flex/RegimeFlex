@@ -17,3 +17,8 @@ circuit_breakers:
 turnover:
   max_pct_of_equity: 0.15   # 15% of equity per day (change this to taste)
   mode: "clamp"             # "clamp" (scale down) or "skip" (do nothing)
+
+cadence:
+  enabled: true         # turn guard on/off
+  min_days_between: 1   # e.g., 1=don't trade the same symbol on consecutive sessions
+  symbols: ["QQQ","PSQ"]  # which symbols to enforce; leave empty to apply to all execution symbols

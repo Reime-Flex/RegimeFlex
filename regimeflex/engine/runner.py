@@ -22,6 +22,7 @@ from .reconcile_positions import effective_positions_before
 from .report_csv import write_change_report
 from .run_summary import append_run_summary
 from .order_preview import write_order_preview
+from .trade_cadence import days_since_trade
 from .timing import eod_ready
 from .fingerprint import compute_fingerprint
 from .telemetry import Notifier, TGCreds
@@ -462,6 +463,44 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
             RF.print_log(f"Order preview CSV saved → {p}", "INFO")
         except Exception as e:
             RF.print_log(f"Order preview CSV failed: {e}", "ERROR")
+
+    # Cadence guard: filter intents based on recent trades
+    risk_cfg = Config(".")._load_yaml("config/risk.yaml") if (Config(".").root / "config/risk.yaml").exists() else {}
+    cad = (risk_cfg.get("cadence") or {})
+    cad_enabled = bool(cad.get("enabled", True))
+    cad_min_days = int(cad.get("min_days_between", 1))
+    cad_symbols = [s.upper() for s in (cad.get("symbols") or [])]
+
+    def _cadence_block(it) -> bool:
+        """Return True if this intent should be blocked by cadence."""
+        sym = str(it.get("symbol","")).upper()
+        if cad_symbols and sym not in cad_symbols:
+            return False
+        d = days_since_trade(sym)
+        if d is None:
+            return False  # never traded before
+        return d < cad_min_days
+
+    if cad_enabled and intents:
+        kept, blocked = [], []
+        for it in intents:
+            if _cadence_block(it):
+                blocked.append(it)
+            else:
+                kept.append(it)
+        if blocked and not kept:
+            # Entire day is a no-op due to cadence
+            crumbs.update({"no_op": True, "no_op_reason": "CADENCE_GUARD"})
+            RF.print_log(f"Cadence guard: blocked {len(blocked)} intent(s) (<{cad_min_days}d since last trade)", "RISK")
+        elif blocked:
+            RF.print_log(f"Cadence guard: filtered {len(blocked)} of {len(intents)} intent(s)", "RISK")
+        intents = kept
+
+    # Add cadence info to breadcrumbs
+    crumbs.update({
+        "cadence_enabled": cad_enabled,
+        "cadence_min_days": cad_min_days,
+    })
 
     # If no intents, derive a reason so we can explain the no-op day.
     if not intents:

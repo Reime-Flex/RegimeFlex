@@ -98,6 +98,7 @@ def write_daily_html(result: dict, out_dir: str, filename_prefix: str = "daily_r
     html.append(f"<li>Plan reason: <code>{_esc(str(result.get('breadcrumbs',{}).get('plan_reason','')))}</code></li>")
     html.append(f"<li>Turnover: <b>{float(bc.get('turnover_frac',0.0))*100:.2f}%</b> <span class='muted'>{_esc(str(bc.get('turnover_note','')))}</span></li>")
     html.append(f"<li>Config hash: <code>{_esc(str(bc.get('config_hash16','')))}</code></li>")
+    html.append(f"<li>Cadence: <b>{'on' if (result.get('breadcrumbs',{}) or {}).get('cadence_enabled') else 'off'}</b> (min {int((result.get('breadcrumbs',{}) or {}).get('cadence_min_days',0))}d)</li>")
     html.append("</ul>")
     
     # Optional: small amber badge if stale
