@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 
 from .identity import RegimeFlexIdentity as RF
 from .config import Config
+from .symnorm import map_keys_upper, sym_upper
 
 FILLS_FILE = Path("logs/trading/fills_state.jsonl")
 
@@ -38,10 +39,10 @@ def effective_positions_before(
     # 1) Trust broker snapshot if available
     if broker_positions_snapshot:
         RF.print_log("Positions source: broker snapshot", "INFO")
-        return {k.upper(): float(v) for k,v in broker_positions_snapshot.items()}, "broker_snapshot"
+        return map_keys_upper(broker_positions_snapshot), "broker_snapshot"
 
     # 2) Apply last known filled_qty to local view
-    eff = {k.upper(): float(v) for k,v in raw_positions_before.items()}
+    eff = map_keys_upper(raw_positions_before)
     fills = _read_fills()
     # Sort by ts to apply in-order
     def _parse_ts(s: str) -> datetime:
@@ -53,7 +54,7 @@ def effective_positions_before(
     applied = 0
 
     for r in fills:
-        sym = str(r.get("symbol","")).upper()
+        sym = sym_upper(str(r.get("symbol","")))
         side = str(r.get("side","")).lower()
         status = str(r.get("status","")).lower()
         fq = r.get("filled_qty")

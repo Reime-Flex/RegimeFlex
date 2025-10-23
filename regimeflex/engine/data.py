@@ -76,7 +76,11 @@ def run_validations(df: pd.DataFrame, symbol: str):
     validate_non_empty(df, symbol)
     validate_columns(df, symbol)
     validate_sorted_unique(df, symbol)
-    validate_recent(df, symbol)
+    # Get max_lag_days from config
+    from .config import Config
+    cfg = Config(".")._load_yaml("config/data.yaml")
+    max_lag = cfg.get("staleness", {}).get("max_days_ok", 3)
+    validate_recent(df, symbol, max_lag_days=max_lag)
     validate_volume(df, symbol)
 
 # ----- Public interface (API-agnostic for now) -----

@@ -1,0 +1,11 @@
+# meta
+# exec_long,QQQ
+# exec_short,PSQ
+# price_common_date,2025-10-19
+# turnover_note,turnover 0.248>0.150 -> clamp×0.604
+# no_op,False
+# no_op_reason,
+# config_hash16,
+
+symbol,side,qty,order_type,time_in_force,limit_price,notional_est,reason
+QQQ,SELL,123.0,moc,cls,,0.0,"plan_orders: curr=621.00, desired=497.51, delta=-123.49 | sizing=rounded 123.4876→123.0000"

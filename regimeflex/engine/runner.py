@@ -25,6 +25,7 @@ from .order_preview import write_order_preview
 from .trade_cadence import days_since_trade
 from .metrics import compute_tsi
 from .plan_coalesce import coalesce_side_flip
+from .symnorm import sym_upper, map_keys_upper, ensure_keys_upper
 from .timing import eod_ready
 from .fingerprint import compute_fingerprint
 from .telemetry import Notifier, TGCreds
@@ -236,8 +237,9 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
 
     # Resolve execution instruments
     exec_map = resolve_execution_pair()
-    LONG  = exec_map["long"]       # "QQQ" or "TQQQ"
-    SHORT = exec_map["short"]      # "PSQ" or "SQQQ"
+    LONG  = sym_upper(exec_map["long"])       # "QQQ" or "TQQQ"
+    SHORT = sym_upper(exec_map["short"])      # "PSQ" or "SQQQ"
+    sides = [LONG, SHORT]
 
     # Load price refs for sizing/valuations
     long_df  = get_daily_bars(exec_map["long_ref"])
@@ -261,9 +263,11 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
     
     # Remap allocator output to execution symbols
     alloc = {
-        exec_map["long"]:  float(alloc_raw.get("TQQQ", 0.0)),
-        exec_map["short"]: float(alloc_raw.get("SQQQ", 0.0)),
+        LONG:  float(alloc_raw.get("TQQQ", 0.0)),
+        SHORT: float(alloc_raw.get("SQQQ", 0.0)),
     }
+    # Normalize symbol casing
+    alloc = ensure_keys_upper(alloc, sides)
     
     RF.print_log(f"Allocation (guarded) → {LONG}={alloc[LONG]:.2f} {SHORT}={alloc[SHORT]:.2f}", "INFO")
 
@@ -328,6 +332,8 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         raw_positions_before=positions_before_raw,
         broker_positions_snapshot=None  # hook for future: pass real broker positions here if available
     )
+    # Normalize symbol casing
+    positions_before = map_keys_upper(positions_before)
     RF.print_log(f"Positions effective source: {pos_note}", "INFO")
     RF.print_log(f"Positions BEFORE (effective): {positions_before}", "INFO")
     
@@ -335,14 +341,15 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
     positions_source = pos_note  # 'broker_snapshot' | 'local_fills_applied' | 'raw'
 
     # Calculate exposure deltas (prev vs desired)
-    sides = [exec_map["long"], exec_map["short"]]
     
     # Build a price map using common date to avoid NaNs
     common_d, px_long, px_short = _last_common_close(long_df, short_df)
     last_prices_map = {
-        exec_map["long"]:  px_long,
-        exec_map["short"]: px_short,
+        LONG:  px_long,
+        SHORT: px_short,
     }
+    # Normalize symbol casing
+    last_prices_map = map_keys_upper(last_prices_map)
     
     # Store common date for reporting/telemetry
     common_date_str = common_d.strftime("%Y-%m-%d")
@@ -445,6 +452,19 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         min_trade_value=min_trade_value,
         emergency_override=False,
     )
+    
+    # Normalize symbol casing in intents
+    intents = [
+        OrderIntent(
+            symbol=sym_upper(intent.symbol),
+            side=intent.side,
+            qty=intent.qty,
+            order_type=intent.order_type,
+            time_in_force=intent.time_in_force,
+            limit_price=intent.limit_price,
+            reason=intent.reason
+        ) for intent in intents
+    ]
 
     # Order preview CSV (when dry_run=true)
     broker_cfg = Config(".")._load_yaml("config/broker.yaml")
@@ -475,7 +495,7 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
 
     def _cadence_block(it) -> bool:
         """Return True if this intent should be blocked by cadence."""
-        sym = str(it.get("symbol","")).upper()
+        sym = str(it.symbol).upper()
         if cad_symbols and sym not in cad_symbols:
             return False
         d = days_since_trade(sym)
@@ -512,7 +532,7 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
     if ex_enabled and intents:
         kept, filtered = [], []
         for it in intents:
-            sym = str(it.get("symbol", "")).upper()
+            sym = str(it.symbol).upper()
             d_prev = float((crumbs.get("prev_exposure") or {}).get(sym, 0.0))
             d_new  = float((crumbs.get("desired_exposure") or {}).get(sym, 0.0))
             delta  = abs(d_new - d_prev)
@@ -541,16 +561,26 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
             target_weights=alloc,
             prices=last_prices_map,
             equity=equity_now,
-            long_sym=exec_map["long"],
-            short_sym=exec_map["short"],
+            long_sym=LONG,
+            short_sym=SHORT,
             close_dust_shares=float(coal.get("close_dust_shares", 1.0)),
             min_open_notional=float(coal.get("min_open_notional", 200.0)),
             prefer_single_leg_if_net_small=bool(coal.get("prefer_single_leg_if_net_small", True)),
         )
         if c_intents:
             RF.print_log(f"Coalesced flip → {c_note}; intents={len(c_intents)}", "INFO")
-            # Bypass normal planner; let downstream sizing/order-type/TIF attach later if you centralize that logic.
-            intents = c_intents
+            # Convert coalesced dict intents to OrderIntent objects
+            intents = [
+                OrderIntent(
+                    symbol=sym_upper(intent["symbol"]),
+                    side=intent["side"].upper(),
+                    qty=float(intent["qty"]),
+                    order_type="market",  # default for coalesced intents
+                    time_in_force="day",  # default for coalesced intents
+                    limit_price=None,
+                    reason=intent["reason"]
+                ) for intent in c_intents
+            ]
             crumbs.update({"coalesced_flip": True, "coalesce_note": c_note})
         else:
             crumbs.update({"coalesced_flip": False, "coalesce_note": c_note})
