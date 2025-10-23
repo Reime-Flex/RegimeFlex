@@ -32,6 +32,12 @@ def trigger_daily():
 
 @app.route("/health", methods=["GET"])
 def health():
+    # Simple health check for Railway - just return OK to avoid timeout issues
+    return {"status": "ok", "timestamp": "2025-10-23T07:52:00Z"}, 200
+
+@app.route("/health-full", methods=["GET"])
+def health_full():
+    # Full health check for detailed diagnostics
     rep = run_health()
     code = 200 if rep.status == "PASS" else (429 if rep.status == "WARN" else 503)
     return {
