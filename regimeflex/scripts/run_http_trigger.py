@@ -16,6 +16,12 @@ app = Flask(__name__)
 
 @app.route("/trigger-daily", methods=["GET"])
 def trigger_daily():
+    # Check if this is a health check (no query params, simple GET)
+    import flask
+    if not flask.request.args and flask.request.method == "GET":
+        # Simple health check - just return OK without running the full cycle
+        return jsonify({"status": "ok", "health_check": True}), 200
+    
     if is_killed():
         RF.print_log("KILL-SWITCH active — refusing HTTP trigger", "RISK")
         return jsonify({"status": "killed"}), 423  # 423 = Locked
