@@ -5,12 +5,12 @@ from pathlib import Path
 from typing import Dict, List, Tuple, Optional
 from datetime import datetime, timezone
 
-from .config import Config
-from .env import load_env
-from .identity import RegimeFlexIdentity as RF
-from .killswitch import is_killed
-from .data import load_from_cache
-from .data import save_to_cache  # used only to test write access if needed
+from regimeflex.engine.config import Config
+from regimeflex.engine.env import load_env
+from regimeflex.engine.identity import RegimeFlexIdentity as RF
+from regimeflex.engine.killswitch import is_killed
+from regimeflex.engine.data import load_from_cache
+from regimeflex.engine.data import save_to_cache  # used only to test write access if needed
 
 @dataclass
 class CheckResult:

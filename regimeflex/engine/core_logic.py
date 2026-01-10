@@ -18,12 +18,12 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timezone
 
-from .indicators import sma, rolling_std, realized_vol_pct_change, atr
-from .signals import RegimeState, TrendSignal, MRSignal
+from regimeflex.engine.indicators import sma, rolling_std, realized_vol_pct_change, atr
+from regimeflex.engine.signals import RegimeState, TrendSignal, MRSignal
 # Note: RiskConfig and RiskInputs imported via TYPE_CHECKING to avoid circular import
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
-    from .risk import RiskConfig, RiskInputs
+    from regimeflex.engine.risk import RiskConfig, RiskInputs
 
 
 # ============================================================================

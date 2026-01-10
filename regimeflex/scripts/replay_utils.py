@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-from .path_utils import find_replay_directory, detect_project_root
+from regimeflex.scripts.path_utils import find_replay_directory, detect_project_root
 
 
 def load_latest_replay(root: Optional[Path] = None) -> Optional[Dict[str, Any]]:

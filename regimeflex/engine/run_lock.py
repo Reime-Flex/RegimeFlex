@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from .identity import RegimeFlexIdentity as RF
+from regimeflex.engine.identity import RegimeFlexIdentity as RF
 
 
 RUN_LOCK_FILE = Path("data/state/run.lock")

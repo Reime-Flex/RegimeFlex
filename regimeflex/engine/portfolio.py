@@ -3,15 +3,15 @@ from dataclasses import dataclass
 
 import pandas as pd
 
-from .signals import detect_regime, trend_signal, mr_signal, RegimeState
-from .risk import RiskConfig, RiskInputs, circuit_breakers, dynamic_position_size
-from .regime_buffer import detect_regime_with_hysteresis, load_regime_state, save_regime_state
-from .bar_completeness import get_safe_price
-from .indicators import sma
-from .identity import RegimeFlexIdentity as RF
+from regimeflex.engine.signals import detect_regime, trend_signal, mr_signal, RegimeState
+from regimeflex.engine.risk import RiskConfig, RiskInputs, circuit_breakers, dynamic_position_size
+from regimeflex.engine.regime_buffer import detect_regime_with_hysteresis, load_regime_state, save_regime_state
+from regimeflex.engine.bar_completeness import get_safe_price
+from regimeflex.engine.indicators import sma
+from regimeflex.engine.identity import RegimeFlexIdentity as RF
 
 # Shadow testing imports
-from .core_logic import (
+from regimeflex.engine.core_logic import (
     get_safe_price_core,
     detect_regime_with_hysteresis_core,
     calculate_base_volatility_core,
@@ -20,7 +20,7 @@ from .core_logic import (
     calculate_position_size_core,
     circuit_breakers_core
 )
-from .shadow_test import (
+from regimeflex.engine.shadow_test import (
     compare_floats,
     compare_bools,
     compare_strings,

@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-from .identity import RegimeFlexIdentity as RF
+from regimeflex.engine.identity import RegimeFlexIdentity as RF
 
 
 KILL_SWITCH_FILE = Path("data/state/kill_switch.json")

@@ -5,7 +5,7 @@ from pathlib import Path
 import csv
 from typing import Dict
 
-from .identity import RegimeFlexIdentity as RF
+from regimeflex.engine.identity import RegimeFlexIdentity as RF
 
 SNAP_DIR = Path("logs/trading")
 SNAP_DIR.mkdir(parents=True, exist_ok=True)

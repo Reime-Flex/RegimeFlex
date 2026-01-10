@@ -3,16 +3,16 @@ from dataclasses import dataclass
 import math
 import pandas as pd
 
-from .indicators import atr, realized_vol_pct_change
+from regimeflex.engine.indicators import atr, realized_vol_pct_change
 
 # Shadow testing imports
-from .core_logic import (
+from regimeflex.engine.core_logic import (
     calculate_base_volatility_core,
     calculate_regime_vol_adjustment_core,
     calculate_decay_adjustment_core,
     calculate_position_size_core
 )
-from .shadow_test import compare_floats, log_shadow_mismatch
+from regimeflex.engine.shadow_test import compare_floats, log_shadow_mismatch
 
 @dataclass(frozen=True)
 class RiskConfig:
@@ -84,7 +84,7 @@ def dynamic_position_size(inputs: RiskInputs,
         decay_stats: Optional decay statistics dict from log_volatility_decay()
                     Expected keys: period_decay_pct, daily_tracking_error_bps
     """
-    from .identity import RegimeFlexIdentity as RF
+    from regimeflex.engine.identity import RegimeFlexIdentity as RF
     
     # OLD CODE PATH
     base_vol = _base_vol(close, high, low, cfg.atr_len)  # ATR/price

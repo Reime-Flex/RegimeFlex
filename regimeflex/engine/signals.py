@@ -2,7 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import pandas as pd
 
-from .indicators import sma, rolling_std, zscore, realized_vol_pct_change
+from regimeflex.engine.indicators import sma, rolling_std, zscore, realized_vol_pct_change
 
 @dataclass(frozen=True)
 class RegimeState:

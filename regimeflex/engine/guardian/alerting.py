@@ -20,8 +20,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
-from ..identity import RegimeFlexIdentity as RF
-from ..config import Config
+from regimeflex.engine.guardian..identity import RegimeFlexIdentity as RF
+from regimeflex.engine.guardian..config import Config
 
 try:
     from telegram import Bot

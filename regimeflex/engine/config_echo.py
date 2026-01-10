@@ -1,7 +1,7 @@
 # engine/config_echo.py
 from __future__ import annotations
 from typing import Dict
-from .config import Config
+from regimeflex.engine.config import Config
 
 def collect_config_echo() -> Dict[str, str | float | int | bool]:
     C = Config(".")

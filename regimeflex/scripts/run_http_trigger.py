@@ -9,13 +9,16 @@ Execution Context:
 - Can be run as module: python -m regimeflex http
 - Can be run via entrypoint: python regimeflex_entrypoint.py http
 
-All methods ensure proper package context for relative imports.
+Uses absolute imports for location-independent execution.
 """
 
-import os
+# Path guard: Ensure parent directory is in sys.path for absolute imports
 import sys
-import json
 from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
+import os
+import json
 from datetime import datetime, timezone
 from flask import Flask, jsonify
 
@@ -26,36 +29,14 @@ try:
 except ImportError:
     CORS_AVAILABLE = False
 
-# Ensure proper package context
-# Strategy: Detect if running as script or module, use appropriate imports
-_regimeflex_dir = Path(__file__).parent.parent
-
-# Check if we're running as a script (__name__ == "__main__" when imported as module)
-# or if regimeflex is already in sys.path (module execution)
-_is_module_context = "regimeflex" in sys.modules or (
-    len(sys.path) > 0 and Path(sys.path[0]).resolve() == _regimeflex_dir.parent.resolve()
-)
-
-if not _is_module_context and str(_regimeflex_dir) not in sys.path:
-    # Running as script - add regimeflex to path
-    sys.path.insert(0, str(_regimeflex_dir))
-    # Use absolute imports
-    from engine.identity import RegimeFlexIdentity as RF
-    from engine.killswitch import is_killed
-    from engine.runner import run_daily_offline
-    from engine.config import Config
-    from engine.health import run_health
-    from scripts.path_utils import detect_project_root, find_replay_directory, find_incidents_file
-    from scripts.replay_utils import load_latest_replay
-else:
-    # Running as module - use relative imports
-    from ..engine.identity import RegimeFlexIdentity as RF
-    from ..engine.killswitch import is_killed
-    from ..engine.runner import run_daily_offline
-    from ..engine.config import Config
-    from ..engine.health import run_health
-    from .path_utils import detect_project_root, find_replay_directory, find_incidents_file
-    from .replay_utils import load_latest_replay
+# Absolute imports from regimeflex package
+from regimeflex.engine.identity import RegimeFlexIdentity as RF
+from regimeflex.engine.killswitch import is_killed
+from regimeflex.engine.runner import run_daily_offline
+from regimeflex.engine.config import Config
+from regimeflex.engine.health import run_health
+from regimeflex.scripts.path_utils import detect_project_root, find_replay_directory, find_incidents_file
+from regimeflex.scripts.replay_utils import load_latest_replay
 
 app = Flask(__name__)
 

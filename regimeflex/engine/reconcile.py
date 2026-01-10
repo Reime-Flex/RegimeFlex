@@ -1,6 +1,6 @@
 from __future__ import annotations
 from typing import List, Dict, Any
-from .exec_planner import OrderIntent
+from regimeflex.engine.exec_planner import OrderIntent
 
 def compare_intents_vs_orders(intents: List[OrderIntent], orders: List[dict]) -> dict:
     """

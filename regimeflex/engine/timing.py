@@ -1,7 +1,7 @@
 # engine/timing.py
 from __future__ import annotations
 from typing import Tuple
-from .config import Config
+from regimeflex.engine.config import Config
 
 def eod_ready(minutes_to_close: int) -> Tuple[bool, str]:
     """

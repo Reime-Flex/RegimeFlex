@@ -5,10 +5,10 @@ from datetime import datetime, timezone
 from typing import Dict, Any
 import pandas as pd
 
-from .config import Config
-from .identity import RegimeFlexIdentity as RF
-from .env import load_env
-from .data_providers import fetch_polygon_daily, fetch_alpaca_daily
+from regimeflex.engine.config import Config
+from regimeflex.engine.identity import RegimeFlexIdentity as RF
+from regimeflex.engine.env import load_env
+from regimeflex.engine.data_providers import fetch_polygon_daily, fetch_alpaca_daily
 
 CACHE_DIR = Path("data/cache")
 CACHE_DIR.mkdir(parents=True, exist_ok=True)
@@ -78,7 +78,7 @@ def run_validations(df: pd.DataFrame, symbol: str):
     validate_columns(df, symbol)
     validate_sorted_unique(df, symbol)
     # Get max_lag_days from config
-    from .config import Config
+    from regimeflex.engine.config import Config
     cfg = Config(".")._load_yaml("config/data.yaml")
     max_lag = cfg.get("staleness", {}).get("max_days_ok", 3)
     validate_recent(df, symbol, max_lag_days=max_lag)

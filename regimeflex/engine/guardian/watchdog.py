@@ -22,9 +22,9 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from ..identity import RegimeFlexIdentity as RF
-from ..config import Config
-from .system_health import check_system_health, format_health_summary
+from regimeflex.engine.guardian..identity import RegimeFlexIdentity as RF
+from regimeflex.engine.guardian..config import Config
+from regimeflex.engine.guardian.system_health import check_system_health, format_health_summary
 
 
 @dataclass
@@ -100,7 +100,7 @@ class Watchdog:
     def _get_alert_manager(self):
         """Lazy load alert manager."""
         if self._alert_manager is None:
-            from .alerting import get_alert_manager
+            from regimeflex.engine.guardian.alerting import get_alert_manager
             self._alert_manager = get_alert_manager(self.root)
         return self._alert_manager
     

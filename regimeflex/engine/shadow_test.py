@@ -11,7 +11,7 @@ from typing import Any, Tuple, Optional, Dict
 from dataclasses import dataclass
 import math
 
-from .identity import RegimeFlexIdentity as RF
+from regimeflex.engine.identity import RegimeFlexIdentity as RF
 
 
 # Tolerance for floating-point comparisons
@@ -251,7 +251,7 @@ def log_shadow_mismatch(
     
     # Also log to incident logger if available
     try:
-        from .incident import IncidentLogger
+        from regimeflex.engine.incident import IncidentLogger
         incidents = IncidentLogger()
         incidents.log(
             level,

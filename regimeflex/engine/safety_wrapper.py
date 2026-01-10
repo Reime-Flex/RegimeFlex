@@ -18,8 +18,8 @@ from pathlib import Path
 from typing import Dict, List, Optional, Any, Tuple
 from contextlib import contextmanager
 
-from .identity import RegimeFlexIdentity as RF
-from .config import Config
+from regimeflex.engine.identity import RegimeFlexIdentity as RF
+from regimeflex.engine.config import Config
 
 
 # ─────────────────────────────────────────────────────────────────────────────

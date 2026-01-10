@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 import json
 from datetime import datetime, timezone
-from .symnorm import sym_upper
+from regimeflex.engine.symnorm import sym_upper
 
 FILLS_FILE = Path("logs/trading/fills_state.jsonl")
 

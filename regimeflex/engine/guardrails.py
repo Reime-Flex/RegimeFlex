@@ -1,8 +1,8 @@
 # engine/guardrails.py
 from __future__ import annotations
 from typing import Dict, Tuple
-from .config import Config
-from .identity import RegimeFlexIdentity as RF
+from regimeflex.engine.config import Config
+from regimeflex.engine.identity import RegimeFlexIdentity as RF
 
 def enforce_exposure_caps(weights: Dict[str, float]) -> Tuple[Dict[str, float], str]:
     """

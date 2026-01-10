@@ -4,8 +4,8 @@ from pathlib import Path
 from datetime import datetime, timedelta, timezone
 import gzip, shutil
 
-from .identity import RegimeFlexIdentity as RF
-from .config import Config
+from regimeflex.engine.identity import RegimeFlexIdentity as RF
+from regimeflex.engine.config import Config
 
 def _is_today(p: Path) -> bool:
     try:

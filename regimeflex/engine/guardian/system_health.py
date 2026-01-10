@@ -17,8 +17,8 @@ try:
 except ImportError:
     PSUTIL_AVAILABLE = False
 
-from ..identity import RegimeFlexIdentity as RF
-from ..config import Config
+from regimeflex.engine.guardian..identity import RegimeFlexIdentity as RF
+from regimeflex.engine.guardian..config import Config
 
 
 def check_system_health() -> Dict[str, Any]:

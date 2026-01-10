@@ -20,8 +20,8 @@ from pathlib import Path
 from threading import Lock
 from typing import Any, Callable, Dict, List, Optional, TypeVar
 
-from ..identity import RegimeFlexIdentity as RF
-from ..config import Config
+from regimeflex.engine.guardian..identity import RegimeFlexIdentity as RF
+from regimeflex.engine.guardian..config import Config
 
 T = TypeVar("T")
 
@@ -133,7 +133,7 @@ class CircuitBreaker:
     def _get_alert_manager(self):
         """Lazy load alert manager to avoid circular imports."""
         if self._alert_manager is None:
-            from .alerting import get_alert_manager
+            from regimeflex.engine.guardian.alerting import get_alert_manager
             self._alert_manager = get_alert_manager(self._root)
         return self._alert_manager
     

@@ -5,9 +5,9 @@ import json
 from typing import Dict, Tuple, List
 from datetime import datetime, timezone
 
-from .identity import RegimeFlexIdentity as RF
-from .config import Config
-from .symnorm import map_keys_upper, sym_upper
+from regimeflex.engine.identity import RegimeFlexIdentity as RF
+from regimeflex.engine.config import Config
+from regimeflex.engine.symnorm import map_keys_upper, sym_upper
 
 FILLS_FILE = Path("logs/trading/fills_state.jsonl")
 

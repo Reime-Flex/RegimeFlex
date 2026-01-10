@@ -5,7 +5,7 @@ import os
 import requests
 import pandas as pd
 
-from .identity import RegimeFlexIdentity as RF
+from regimeflex.engine.identity import RegimeFlexIdentity as RF
 
 def _iso_days_ago(days: int) -> str:
     return (datetime.now(timezone.utc) - timedelta(days=days)).date().isoformat()
@@ -103,7 +103,7 @@ def fetch_polygon_daily(symbol: str, days: int, base_url: str, api_key: Optional
     
     # Use circuit breaker for Polygon API calls
     try:
-        from .guardian.circuit_breaker import get_polygon_breaker, CircuitBreakerError
+        from regimeflex.engine.guardian.circuit_breaker import get_polygon_breaker, CircuitBreakerError
         breaker = get_polygon_breaker()
     except ImportError:
         class MockBreaker:

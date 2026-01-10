@@ -1,8 +1,8 @@
 # engine/exposure_reason.py
 from __future__ import annotations
 import pandas as pd
-from .config import Config
-from .exposure import compute_sma, compute_bbands, ndx_extension, _realized_vol  # uses same math as allocator
+from regimeflex.engine.config import Config
+from regimeflex.engine.exposure import compute_sma, compute_bbands, ndx_extension, _realized_vol  # uses same math as allocator
 
 def compute_exposure_diagnostics(df: pd.DataFrame) -> dict:
     """

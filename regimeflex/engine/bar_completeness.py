@@ -10,7 +10,7 @@ from typing import Tuple
 
 import pandas as pd
 
-from .identity import RegimeFlexIdentity as RF
+from regimeflex.engine.identity import RegimeFlexIdentity as RF
 
 
 def is_bar_complete(bar_date: pd.Timestamp | datetime, current_time: datetime | None = None) -> bool:

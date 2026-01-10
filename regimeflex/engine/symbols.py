@@ -1,9 +1,9 @@
 # engine/symbols.py
 from __future__ import annotations
 from typing import Tuple
-from .config import Config
-from .identity import RegimeFlexIdentity as RF
-from .data import load_from_cache
+from regimeflex.engine.config import Config
+from regimeflex.engine.identity import RegimeFlexIdentity as RF
+from regimeflex.engine.data import load_from_cache
 
 def resolve_signal_underlier() -> Tuple[str, object]:
     """

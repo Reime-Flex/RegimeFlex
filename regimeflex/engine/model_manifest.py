@@ -2,7 +2,7 @@
 from __future__ import annotations
 from pathlib import Path
 from typing import Dict, Any
-from .config import Config
+from regimeflex.engine.config import Config
 
 def load_model_manifest(root: Path | str = ".") -> Dict[str, Any]:
     cfg = Config(root)

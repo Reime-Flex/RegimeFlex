@@ -1,7 +1,7 @@
 from http.server import HTTPServer, BaseHTTPRequestHandler
 import json
 import threading
-from .health import run_health
+from regimeflex.engine.health import run_health
 
 class HealthHandler(BaseHTTPRequestHandler):
     def do_GET(self):

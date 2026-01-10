@@ -4,8 +4,8 @@ import math
 import pandas as pd
 import numpy as np
 
-from .signals import detect_regime, trend_signal, mr_signal, RegimeState
-from .risk import RiskConfig, RiskInputs, circuit_breakers, dynamic_position_size
+from regimeflex.engine.signals import detect_regime, trend_signal, mr_signal, RegimeState
+from regimeflex.engine.risk import RiskConfig, RiskInputs, circuit_breakers, dynamic_position_size
 
 def _slip(px: float, side: str, bps: float) -> float:
     """

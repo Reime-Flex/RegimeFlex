@@ -4,7 +4,7 @@ RegimeFlex Package Entrypoint
 This allows RegimeFlex to be executed as a Python module:
     python -m regimeflex [command] [args...]
 
-This ensures proper package context and resolves all relative imports correctly.
+Uses absolute imports for location-independent execution.
 """
 
 import sys
@@ -44,10 +44,10 @@ def main():
         sys.exit(0)
     
     # Route to appropriate handler
-    # Use relative imports since we're inside the regimeflex package
+    # Use absolute imports for location-independent execution
     if command == "run":
-        from .engine.runner import run_daily_offline
-        from .engine.config import Config
+        from regimeflex.engine.runner import run_daily_offline
+        from regimeflex.engine.config import Config
         
         cfg = Config(".")
         run = cfg.run or {}
@@ -62,13 +62,13 @@ def main():
     
     elif command == "http":
         # Start HTTP server
-        from .scripts.run_http_trigger import main
+        from regimeflex.scripts.run_http_trigger import main
         
         main()
         sys.exit(0)
     
     elif command == "health":
-        from .engine.health import run_health
+        from regimeflex.engine.health import run_health
         
         rep = run_health()
         print(f"Health Status: {rep.status}")

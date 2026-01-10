@@ -4,70 +4,73 @@ from dataclasses import asdict
 import math
 from pathlib import Path
 from typing import Dict, List
-
-from .identity import RegimeFlexIdentity as RF
-from .env import load_env
-from .config import Config
-from .killswitch import is_killed
-from .logrotate import rotate_all
-from .log_rotate import rotate_logs
-from .pnl import snapshot_from_positions, append_snapshot_csv
-from .exposure import exposure_allocator, classify_phase
-from .guardrails import enforce_exposure_caps
 import time
-from .versioning import runtime_versions
-from .exposure_delta import current_exposure_weights, exposure_delta
-from .exposure_reason import compute_exposure_diagnostics, format_plan_reason
-from .symbols import resolve_signal_underlier
-from .signals import trend_signal, mr_signal, detect_regime, RegimeState
-from .instruments import resolve_execution_pair
-from .turnover import enforce_turnover_cap
-from .reconcile_positions import effective_positions_before
-from .report_csv import write_change_report
-from .run_summary import append_run_summary
-from .order_preview import write_order_preview
-from .trade_cadence import days_since_trade
-from .metrics import compute_tsi
-from .plan_coalesce import coalesce_side_flip
-from .symnorm import sym_upper, map_keys_upper, ensure_keys_upper
-from .timing import eod_ready
-from .fingerprint import compute_fingerprint
-from .config_hash import config_snapshot_hash
-from .telemetry import Notifier, TGCreds
-from .data import get_daily_bars, build_source_meta
-from .bar_hygiene import validate_last_bar
-from .model_manifest import load_model_manifest
-from .stability import flip_count, stability_score
-from .regime_accuracy import build_proxy_labels, shift_for_lookahead, accuracy_score
-from .concentration import side_concentration, symbol_peak, badge
-from .liquidity import rolling_adv, assess_depth
-from .adv_guard import enforce_adv_cap
-from .replay import write_replay_bundle
-from .risk import RiskConfig
-from .config_echo import collect_config_echo
-from .sanity import check_mutual_exclusive, clamp_smaller_side
-from .drift import compute_position_drift
-from .kill_switch import evaluate_kill_switch
-from .anomaly import detect_anomalies
-from .price_source_check import check_price_source
-from .harmonize import harmonize_exposure
-from .panic_guard import write_panic_bundle
-from .env_watchdog import env_guard
-from .session_guard import session_status
-from .portfolio import compute_target_exposure, TargetExposure
-from .exec_planner import plan_orders, OrderIntent
-from .exec_alpaca import AlpacaCreds, AlpacaExecutor, ALPACA_PAPER_URL, ALPACA_LIVE_URL, dry_run_details
-from .incident import IncidentLogger
-from .window_gate import morning_rush_check
-from .liquidity import check_zscore_liquidity
-from .decay import log_volatility_decay
-from .reconcile import compare_intents_vs_orders
-from .positions import load_positions, save_positions
-from .fills import simulate_fills, apply_simulated_fills, append_fill, load_fills
-from .exec_quality import slippage_bps, rolling_stats
-from .drift_fill import load_jsonl, assess_drift
-from .storage import ENSStyleAudit
-from .calendar import is_fomc_blackout, is_opex
+from datetime import date
+import pandas as pd
+
+# Absolute imports from regimeflex.engine package
+from regimeflex.engine.identity import RegimeFlexIdentity as RF
+from regimeflex.engine.env import load_env
+from regimeflex.engine.config import Config
+from regimeflex.engine.killswitch import is_killed
+from regimeflex.engine.logrotate import rotate_all
+from regimeflex.engine.log_rotate import rotate_logs
+from regimeflex.engine.pnl import snapshot_from_positions, append_snapshot_csv
+from regimeflex.engine.exposure import exposure_allocator, classify_phase
+from regimeflex.engine.guardrails import enforce_exposure_caps
+from regimeflex.engine.versioning import runtime_versions
+from regimeflex.engine.exposure_delta import current_exposure_weights, exposure_delta
+from regimeflex.engine.exposure_reason import compute_exposure_diagnostics, format_plan_reason
+from regimeflex.engine.symbols import resolve_signal_underlier
+from regimeflex.engine.signals import trend_signal, mr_signal, detect_regime, RegimeState
+from regimeflex.engine.instruments import resolve_execution_pair
+from regimeflex.engine.turnover import enforce_turnover_cap
+from regimeflex.engine.reconcile_positions import effective_positions_before
+from regimeflex.engine.report_csv import write_change_report
+from regimeflex.engine.run_summary import append_run_summary
+from regimeflex.engine.order_preview import write_order_preview
+from regimeflex.engine.trade_cadence import days_since_trade
+from regimeflex.engine.metrics import compute_tsi
+from regimeflex.engine.plan_coalesce import coalesce_side_flip
+from regimeflex.engine.symnorm import sym_upper, map_keys_upper, ensure_keys_upper
+from regimeflex.engine.timing import eod_ready
+from regimeflex.engine.fingerprint import compute_fingerprint
+from regimeflex.engine.config_hash import config_snapshot_hash
+from regimeflex.engine.telemetry import Notifier, TGCreds
+from regimeflex.engine.data import get_daily_bars, build_source_meta
+from regimeflex.engine.bar_hygiene import validate_last_bar
+from regimeflex.engine.model_manifest import load_model_manifest
+from regimeflex.engine.stability import flip_count, stability_score
+from regimeflex.engine.regime_accuracy import build_proxy_labels, shift_for_lookahead, accuracy_score
+from regimeflex.engine.concentration import side_concentration, symbol_peak, badge
+from regimeflex.engine.liquidity import rolling_adv, assess_depth
+from regimeflex.engine.adv_guard import enforce_adv_cap
+from regimeflex.engine.replay import write_replay_bundle
+from regimeflex.engine.risk import RiskConfig
+from regimeflex.engine.config_echo import collect_config_echo
+from regimeflex.engine.sanity import check_mutual_exclusive, clamp_smaller_side
+from regimeflex.engine.drift import compute_position_drift
+from regimeflex.engine.kill_switch import evaluate_kill_switch
+from regimeflex.engine.anomaly import detect_anomalies
+from regimeflex.engine.price_source_check import check_price_source
+from regimeflex.engine.harmonize import harmonize_exposure
+from regimeflex.engine.panic_guard import write_panic_bundle
+from regimeflex.engine.env_watchdog import env_guard
+from regimeflex.engine.session_guard import session_status
+from regimeflex.engine.portfolio import compute_target_exposure, TargetExposure
+from regimeflex.engine.exec_planner import plan_orders, OrderIntent
+from regimeflex.engine.exec_alpaca import AlpacaCreds, AlpacaExecutor, ALPACA_PAPER_URL, ALPACA_LIVE_URL, dry_run_details
+from regimeflex.engine.incident import IncidentLogger
+from regimeflex.engine.window_gate import morning_rush_check
+from regimeflex.engine.liquidity import check_zscore_liquidity
+from regimeflex.engine.decay import log_volatility_decay
+from regimeflex.engine.reconcile import compare_intents_vs_orders
+from regimeflex.engine.positions import load_positions, save_positions
+from regimeflex.engine.fills import simulate_fills, apply_simulated_fills, append_fill, load_fills
+from regimeflex.engine.exec_quality import slippage_bps, rolling_stats
+from regimeflex.engine.drift_fill import load_jsonl, assess_drift
+from regimeflex.engine.storage import ENSStyleAudit
+from regimeflex.engine.calendar import is_fomc_blackout, is_opex
 from datetime import date
 import pandas as pd
 
@@ -131,8 +134,8 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
     RF.print_log("RegimeFlex offline daily cycle starting", "INFO")
     
     # Priority 1: Execution Run Lock - Prevent concurrent execution
-    from .run_lock import acquire_run_lock, release_run_lock, is_run_locked
-    from .kill_switch_manual import is_kill_switch_active
+    from regimeflex.engine.run_lock import acquire_run_lock, release_run_lock, is_run_locked
+    from regimeflex.engine.kill_switch_manual import is_kill_switch_active
     
     # Check kill switch FIRST (before acquiring lock)
     kill_data = is_kill_switch_active()
@@ -739,7 +742,7 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
     # Calculate decay_stats early so we can apply adjustment before target creation
     decay_stats = {}
     try:
-        from .decay import log_volatility_decay
+        from regimeflex.engine.decay import log_volatility_decay
         # Check Long Side (TQQQ) vs Index (QQQ)
         if long_df is not None and not long_df.empty and sig_df is not None and not sig_df.empty:
             d_long = log_volatility_decay(
@@ -1365,7 +1368,7 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
     do_broker = bool(alp.get("enabled", True))  # default on, controlled by dry_run anyway
     
     # Use is_dry_run() to check ENV var and config (respects REGIMEFLEX_DRY_RUN=1)
-    from .exec_alpaca import is_dry_run
+    from regimeflex.engine.exec_alpaca import is_dry_run
     dry_run_broker = is_dry_run(".")
     
     mode = str(alp.get("mode", "paper")).lower()
@@ -1718,7 +1721,7 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
     try:
         # Safety: Stale Data Check
         try:
-            from .safety_wrapper import SafetyWrapper, StaleDataError
+            from regimeflex.engine.safety_wrapper import SafetyWrapper, StaleDataError
             safety = SafetyWrapper()
             if long_df is not None and not long_df.empty:
                 # Check freshness of the last bar (assume it's the latest available data)
@@ -1736,7 +1739,7 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
             RF.print_log(f"⛔ SAFETY SHIELD: {e}", "ERROR")
             # Send alert through Guardian module
             try:
-                from .guardian.alerting import get_alert_manager
+                from regimeflex.engine.guardian.alerting import get_alert_manager
                 alert_mgr = get_alert_manager()
                 alert_mgr.send_warning(
                     "Stale Data Detected",
@@ -2035,7 +2038,7 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
             RF.print_log(f"Replay pack write failed: {e}", "ERROR")
 
     # --- 13. End of Cycle (Watchdog) ---
-    from .guardian.watchdog import touch_heartbeat
+    from regimeflex.engine.guardian.watchdog import touch_heartbeat
     touch_heartbeat(
         regime=crumbs.get('phase', 'UNKNOWN'),
         equity=crumbs.get('equity_now'),

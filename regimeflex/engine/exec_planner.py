@@ -2,10 +2,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Dict
 
-from .portfolio import TargetExposure
-from .config import Config
-from .sizing import load_constraints, sanitize_desired_qty
-from .identity import RegimeFlexIdentity as RF
+from regimeflex.engine.portfolio import TargetExposure
+from regimeflex.engine.config import Config
+from regimeflex.engine.sizing import load_constraints, sanitize_desired_qty
+from regimeflex.engine.identity import RegimeFlexIdentity as RF
 
 @dataclass(frozen=True)
 class OrderIntent:
@@ -33,13 +33,13 @@ def _get_slippage_buffer() -> float:
     Default 0.05% (0.0005) for execution certainty on volatile ETFs like TQQQ.
     """
     try:
-        from .safety_wrapper import get_safety_config
+        from regimeflex.engine.safety_wrapper import get_safety_config
         cfg = get_safety_config()
         return cfg.slippage_buffer_pct
     except Exception:
         return 0.0005  # Default 0.05%
 
-from .indicators import atr
+from regimeflex.engine.indicators import atr
 
 def calculate_adaptive_limit_offset(
     df: pd.DataFrame,

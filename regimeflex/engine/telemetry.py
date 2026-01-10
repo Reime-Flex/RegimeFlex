@@ -4,7 +4,7 @@ from typing import Optional, Dict, Any
 from datetime import datetime
 import asyncio
 
-from .identity import RegimeFlexIdentity as RF
+from regimeflex.engine.identity import RegimeFlexIdentity as RF
 
 try:
     from telegram import Bot

@@ -1,8 +1,8 @@
 # engine/instruments.py
 from __future__ import annotations
 from typing import Tuple, Dict
-from .config import Config
-from .identity import RegimeFlexIdentity as RF
+from regimeflex.engine.config import Config
+from regimeflex.engine.identity import RegimeFlexIdentity as RF
 
 def resolve_execution_pair() -> Dict[str, str]:
     ex = Config(".")._load_yaml("config/execution.yaml")

@@ -1,8 +1,8 @@
 from __future__ import annotations
 from pathlib import Path
 from datetime import datetime, timezone
-from .health import run_health   # NEW
-from .incident_view import load_incidents_for_date
+from regimeflex.engine.health import run_health   # NEW
+from regimeflex.engine.incident_view import load_incidents_for_date
 
 def _esc(s: str) -> str:
     return (s or "").replace("&","&amp;").replace("<","&lt;").replace(">","&gt;")

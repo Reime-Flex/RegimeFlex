@@ -2,8 +2,8 @@
 from __future__ import annotations
 import pandas as pd
 import numpy as np
-from .config import Config
-from .identity import RegimeFlexIdentity as RF
+from regimeflex.engine.config import Config
+from regimeflex.engine.identity import RegimeFlexIdentity as RF
 
 def compute_sma(df: pd.DataFrame, n: int) -> pd.Series:
     return df["close"].rolling(n).mean()

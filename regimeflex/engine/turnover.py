@@ -2,7 +2,7 @@
 from __future__ import annotations
 from typing import Dict, Tuple
 import pandas as pd
-from .identity import RegimeFlexIdentity as RF
+from regimeflex.engine.identity import RegimeFlexIdentity as RF
 
 def _mv_from_weights(weights: Dict[str, float], equity: float) -> Dict[str, float]:
     return {k: float(v) * float(equity) for k, v in weights.items()}

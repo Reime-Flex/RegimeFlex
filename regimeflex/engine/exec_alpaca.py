@@ -4,10 +4,10 @@ from typing import Dict, Any, List, Optional
 import requests
 import os
 
-from .exec_planner import OrderIntent
-from .identity import RegimeFlexIdentity as RF
-from .fills_state import append_fill_record
-from .config import Config
+from regimeflex.engine.exec_planner import OrderIntent
+from regimeflex.engine.identity import RegimeFlexIdentity as RF
+from regimeflex.engine.fills_state import append_fill_record
+from regimeflex.engine.config import Config
 from pathlib import Path
 
 ALPACA_PAPER_URL = "https://paper-api.alpaca.markets"
@@ -69,7 +69,7 @@ class AlpacaExecutor:
         """
         # 1. Import Safety Wrapper
         try:
-            from .safety_wrapper import SafetyWrapper, OrderLockError
+            from regimeflex.engine.safety_wrapper import SafetyWrapper, OrderLockError
             safety = SafetyWrapper()
         except ImportError:
             safety = None
@@ -147,7 +147,7 @@ class AlpacaExecutor:
         
         # Guardian: Get circuit breaker
         try:
-            from .guardian.circuit_breaker import get_alpaca_breaker, CircuitBreakerError
+            from regimeflex.engine.guardian.circuit_breaker import get_alpaca_breaker, CircuitBreakerError
             breaker = get_alpaca_breaker()
         except ImportError:
             class MockBreaker:
