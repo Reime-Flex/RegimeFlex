@@ -173,8 +173,6 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
             "config_fingerprint": fp if 'fp' in locals() else {}
         }
     
-    try:
-    
     # Initialize incident logger
     incidents = IncidentLogger(root=".")
     
