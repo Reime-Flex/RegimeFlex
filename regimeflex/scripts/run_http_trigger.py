@@ -166,10 +166,27 @@ def incidents():
         return jsonify({"error": str(e)}), 500
 
 def main():
-    """Main entrypoint for HTTP server."""
-    # IMPORTANT: bind to 0.0.0.0 and the PORT env var for Railway
+    """
+    Main entrypoint for HTTP server.
+    
+    This function is called by:
+    - python -m regimeflex http (via __main__.py routing)
+    - python -m regimeflex.scripts.run_http_trigger (direct module execution)
+    
+    It MUST NOT be called by direct script execution.
+    """
+    # IMPORTANT: bind to 0.0.0.0 and the PORT env var for Railway/PM2
     port = int(os.environ.get("PORT", "5000"))
-    app.run(host="0.0.0.0", port=port)
+    RF.print_log(f"Starting HTTP server on 0.0.0.0:{port}", "INFO")
+    app.run(host="0.0.0.0", port=port, debug=False)
 
+# Production rule: Prevent direct script execution
+# This module must be run as a package component to ensure proper import context
 if __name__ == "__main__":
-    main()
+    RF.print_log(
+        "ERROR: This module must be executed as a package component.\n"
+        "  Use: python -m regimeflex http\n"
+        "  NOT: python regimeflex/scripts/run_http_trigger.py",
+        "ERROR"
+    )
+    sys.exit(1)
