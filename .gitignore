@@ -20,6 +20,9 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
+*.pyc
+*.pyo
+*.pyd
 
 # Virtual environments
 .venv/
@@ -27,6 +30,10 @@ venv/
 ENV/
 env/
 .env
+.venv
+venv/
+ENV/
+env/
 
 # IDE
 .vscode/
@@ -34,6 +41,11 @@ env/
 *.swp
 *.swo
 *~
+.project
+.pydevproject
+.settings/
+*.sublime-project
+*.sublime-workspace
 
 # OS
 .DS_Store
@@ -43,12 +55,100 @@ env/
 .Trashes
 ehthumbs.db
 Thumbs.db
+Desktop.ini
 
-# RegimeFlex specific
-data/cache/
+# RegimeFlex specific - Local state and data
+data/state/*.json
+data/state/*.lock
+data/cache/*.csv
+data/cache/*.db
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+
+# Logs and runtime files
 logs/
 *.log
+*.log.*
+*.out
+*.err
+
+# Reports (generated)
+reports/*.html
+reports/*.csv
+reports/*.png
+reports/*.jpg
+reports/*.jpeg
+reports/monthly/
+!reports/.gitkeep
+
+# Replays (generated)
+replays/*.json
+replays/viewers/*.html
+!replays/.gitkeep
 
 # API keys and secrets
 .env
+.env.local
+.env.*.local
 config/secrets.yaml
+config/*_secret*.yaml
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Kill switch state
+data/state/kill_switch.json
+data/state/run.lock
+data/state/regime_state.json
+data/state/trading_state.json
+
+# Guardian heartbeat
+.guardian_heartbeat
+*.heartbeat
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+.hypothesis/
+
+# Jupyter Notebooks
+.ipynb_checkpoints
+*.ipynb
+
+# Node.js (for web frontend)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnp/
+.pnp.js
+
+# Next.js
+.next/
+out/
+build/
+.vercel
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.backup
+*.swp
+*~
+
+# PM2
+.pm2/
+ecosystem.config.js.local
+
+# Railway / Heroku
+.railway/
+.heroku/
+
+# Local configuration overrides
+config/local.yaml
+config/override.yaml

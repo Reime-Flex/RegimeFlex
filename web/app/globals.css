@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+:root {
+  /* Core Colors */
+  --background: #0f172a; /* Slate 900 */
+  --foreground: #f8fafc; /* Slate 50 */
+
+  /* Bull Regime - Emerald/Forest */
+  --regime-bull-primary: #10b981;
+  --regime-bull-bg: #064e3b;
+  --regime-bull-glass: rgba(6, 78, 59, 0.3);
+
+  /* Bear Regime - Ruby/Burgundy */
+  --regime-bear-primary: #ef4444;
+  --regime-bear-bg: #7f1d1d;
+  --regime-bear-glass: rgba(127, 29, 29, 0.3);
+
+  /* Neutral Regime - Slate/Gray */
+  --regime-neutral-primary: #94a3b8;
+  --regime-neutral-bg: #1e293b;
+  --regime-neutral-glass: rgba(30, 41, 59, 0.3);
+}
+
+@theme {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Glassmorphism Utilities */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
