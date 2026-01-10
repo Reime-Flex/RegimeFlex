@@ -311,10 +311,27 @@ pip install -r requirements.txt
 
 ### First Run
 
-```bash
-# Test run (dry-run mode, no real orders)
-python -m regimeflex.scripts.run_offline_from_config
+**Production Execution Methods** (all work without PYTHONPATH hacks):
 
+```bash
+# Method 1: Module execution (recommended)
+python -m regimeflex run          # Run daily trading cycle
+python -m regimeflex http         # Start HTTP trigger server
+python -m regimeflex health       # Run health check
+
+# Method 2: Direct engine module execution
+python -m regimeflex.engine.runner  # Run daily cycle directly
+
+# Method 3: After pip install -e . (console scripts)
+regimeflex-run   # Run daily cycle
+regimeflex-http  # Start HTTP server
+
+# Method 4: Script execution (legacy, still works)
+python regimeflex/scripts/run_offline_from_config.py
+```
+
+**Other Commands**:
+```bash
 # Preview orders before execution
 python -m regimeflex.scripts.plan_preview
 
@@ -323,6 +340,18 @@ python -m regimeflex.scripts.next_run
 
 # Reconcile positions (broker vs local)
 python -m regimeflex.scripts.reconcile_positions
+```
+
+**PM2 Production Deployment**:
+```bash
+# Install package (recommended for production)
+pip install -e .
+
+# Start with PM2
+pm2 start ecosystem.config.js
+
+# Or use module execution directly
+pm2 start ecosystem.config.js --update-env
 ```
 
 ---

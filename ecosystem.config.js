@@ -19,7 +19,7 @@ module.exports = {
         {
             name: "regimeflex",
             script: "python",
-            args: "regimeflex/scripts/trigger_server.py",
+            args: "-m regimeflex http",
             cwd: "./",
 
             // Instance management
@@ -71,7 +71,7 @@ module.exports = {
         {
             name: "regimeflex-watchdog",
             script: "python",
-            args: "regimeflex/scripts/watchdog_monitor.py",
+            args: "-m regimeflex.scripts.watchdog_monitor",
             cwd: "./",
 
             // Instance management
@@ -102,7 +102,7 @@ module.exports = {
         {
             name: "regimeflex-heartbeat",
             script: "python",
-            args: "regimeflex/scripts/send_heartbeat.py",
+            args: "-m regimeflex.scripts.send_heartbeat",
             cwd: "./",
 
             // Cron: every 4 hours

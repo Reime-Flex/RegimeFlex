@@ -2046,3 +2046,53 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
     release_run_lock()
 
     return result
+
+
+def main() -> int:
+    """
+    CLI entrypoint for runner module.
+    
+    This function can be called via:
+    - python -m regimeflex.engine.runner
+    - console script: regimeflex-run (after pip install -e .)
+    - direct import: from regimeflex.engine.runner import main; main()
+    
+    Returns:
+        0 on success, 1 on error
+    """
+    import sys
+    
+    try:
+        cfg = Config(".")
+        run = cfg.run or {}
+        
+        equity = float(run.get("equity", 25_000.0))
+        vix = run.get("vix_assumption", 20.0)
+        mtc = int(run.get("minutes_to_close", 28))
+        min_trade_value = float(run.get("min_trade_value", 200.0))
+        
+        RF.print_log(f"Config params: equity={equity}, vix={vix}, mtc={mtc}, min=${min_trade_value}", "INFO")
+        
+        result = run_daily_offline(
+            equity=equity,
+            vix=vix if vix is None or isinstance(vix, (int, float)) else 20.0,
+            minutes_to_close=mtc,
+            min_trade_value=min_trade_value,
+        )
+        
+        RF.print_log("Daily cycle completed successfully", "SUCCESS")
+        return 0
+        
+    except KeyboardInterrupt:
+        RF.print_log("Interrupted by user", "WARNING")
+        return 130  # Standard exit code for SIGINT
+    except Exception as e:
+        RF.print_log(f"Daily cycle failed: {e}", "ERROR")
+        import traceback
+        traceback.print_exc()
+        return 1
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(main())
