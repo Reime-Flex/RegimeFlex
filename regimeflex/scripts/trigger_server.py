@@ -419,7 +419,8 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    port = int(os.environ.get("REGIMEFLEX_TRIGGER_PORT", "8080"))
+    # Railway provides PORT env var, fallback to REGIMEFLEX_TRIGGER_PORT or 8080
+    port = int(os.environ.get("PORT", os.environ.get("REGIMEFLEX_TRIGGER_PORT", "8080")))
     host = os.environ.get("REGIMEFLEX_TRIGGER_HOST", "0.0.0.0")
     srv = HTTPServer((host, port), Handler)
     print(RF.formatted_log(f"Trigger server listening on http://{host}:{port}", "INFO"))

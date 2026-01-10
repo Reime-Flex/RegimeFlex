@@ -4,8 +4,8 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "python scripts/run_http_trigger.py",
-    "healthcheckPath": "/trigger-daily",
+    "startCommand": "python regimeflex/scripts/run_http_trigger.py",
+    "healthcheckPath": "/health",
     "healthcheckTimeout": 100,
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
