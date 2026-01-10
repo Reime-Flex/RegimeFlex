@@ -58,13 +58,25 @@ def circuit_breakers(inputs: RiskInputs, cfg: RiskConfig) -> tuple[bool, str]:
 
 def dynamic_position_size(inputs: RiskInputs,
                           close: pd.Series, high: pd.Series, low: pd.Series,
-                          cfg: RiskConfig) -> tuple[float, str]:
+                          cfg: RiskConfig,
+                          decay_stats: dict | None = None) -> tuple[float, str]:
     """
     Returns (target_position_dollars, note).
     Implements:
-      size = (risk_budget * regime_vol_adjust) / base_vol
+      size = (risk_budget * regime_vol_adjust * decay_adjust) / base_vol
       with extra conservatism and max_position cap.
+      
+    Args:
+        inputs: Risk inputs
+        close: Close price series
+        high: High price series
+        low: Low price series
+        cfg: Risk configuration
+        decay_stats: Optional decay statistics dict from log_volatility_decay()
+                    Expected keys: period_decay_pct, daily_tracking_error_bps
     """
+    from .identity import RegimeFlexIdentity as RF
+    
     base_vol = _base_vol(close, high, low, cfg.atr_len)  # ATR/price
     if base_vol <= 0 or math.isnan(base_vol):
         return 0.0, "Invalid base_vol"
@@ -81,7 +93,25 @@ def dynamic_position_size(inputs: RiskInputs,
     if getattr(inputs, "is_opex", False):
         regime_vol_adjust = min(regime_vol_adjust, 0.85)
 
-    size = (inputs.equity * cfg.risk_budget_pct * regime_vol_adjust) / base_vol
+    # Priority 2: Leverage Decay Adjustment
+    # Reduce position sizes by up to 30% if decay indicates choppy market
+    decay_adjust = 1.0
+    if decay_stats:
+        # If decay is positive (underperforming), reduce size
+        # Decay > 1% over 20 days suggests choppy regime
+        period_decay = decay_stats.get("period_decay_pct", 0.0)
+        if period_decay > 1.0:  # 1% decay threshold
+            # Scale down by decay severity (max 30% reduction)
+            # Formula: decay_adjust = max(0.7, 1.0 - (period_decay / 10.0))
+            # Example: 2% decay → 1.0 - 0.2 = 0.8 (20% reduction)
+            # Example: 5% decay → 1.0 - 0.5 = 0.5 (50% reduction, capped at 0.7 = 30% reduction)
+            decay_adjust = max(0.7, 1.0 - (period_decay / 10.0))
+            RF.print_log(
+                f"🛡️ Decay adjustment: {decay_adjust:.2f} (decay={period_decay:.2f}% over 20d)",
+                "RISK"
+            )
+
+    size = (inputs.equity * cfg.risk_budget_pct * regime_vol_adjust * decay_adjust) / base_vol
 
     # extra conservatism vs max_position_pct * 0.8
     max_cap = inputs.equity * (cfg.max_position_pct * 0.8)
@@ -92,4 +122,4 @@ def dynamic_position_size(inputs: RiskInputs,
     
     target = min(size, max_cap)
 
-    return float(target), f"base_vol={base_vol:.4f}, adj={regime_vol_adjust:.2f}, cap={max_cap:.2f}"
+    return float(target), f"base_vol={base_vol:.4f}, adj={regime_vol_adjust:.2f}, decay_adj={decay_adjust:.2f}, cap={max_cap:.2f}"

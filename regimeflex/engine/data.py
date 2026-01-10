@@ -2,6 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from datetime import datetime, timezone
+from typing import Dict, Any
 import pandas as pd
 
 from .config import Config
@@ -146,3 +147,38 @@ def get_daily_bars_with_provider(symbol: str, force_refresh: bool = False) -> pd
         return df_cached
 
     raise DataError(f"{symbol}: no data available (provider={provider})")
+
+# ----- Source metadata helpers -----
+
+def _iso(d: datetime) -> str:
+    if d.tzinfo is None:
+        d = d.replace(tzinfo=timezone.utc)
+    return d.astimezone(timezone.utc).date().isoformat()
+
+def build_source_meta(
+    symbol: str,
+    provider: str,
+    df,                    # your OHLCV dataframe
+    field_map: Dict[str,str] | None = None
+) -> Dict[str, Any]:
+    """
+    Returns a small meta block describing the source of this symbol's data.
+    Assumes df.index[-1] (or a 'date' column) is the last bar.
+    """
+    field_map = field_map or {}
+    # infer as-of date from index or 'date' column
+    if hasattr(df, "index") and len(df.index) and not isinstance(df.index[-1], int):
+        asof = df.index[-1]
+    else:
+        asof = df["date"].iloc[-1]
+    asof_iso = _iso(asof if isinstance(asof, datetime) else datetime.fromisoformat(str(asof)))
+    return {
+        "symbol": symbol.upper(),
+        "provider": provider,
+        "as_of": asof_iso,
+        "fields": {
+            "close": field_map.get("close", "close"),
+            "volume": field_map.get("volume", "volume"),
+        },
+        "rows": int(len(df)),
+    }

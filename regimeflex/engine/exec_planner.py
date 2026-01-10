@@ -27,13 +27,59 @@ def _normalize_target_shares_for_symbol(target: TargetExposure) -> float:
         return abs(target.shares)
     return target.shares
 
+def _get_slippage_buffer() -> float:
+    """
+    Get slippage buffer from safety config.
+    Default 0.05% (0.0005) for execution certainty on volatile ETFs like TQQQ.
+    """
+    try:
+        from .safety_wrapper import get_safety_config
+        cfg = get_safety_config()
+        return cfg.slippage_buffer_pct
+    except Exception:
+        return 0.0005  # Default 0.05%
+
+from .indicators import atr
+
+def calculate_adaptive_limit_offset(
+    df: pd.DataFrame,
+    base_offset_pct: float = 0.005,  # 0.5% base
+    atr_multiplier: float = 0.3,
+    max_offset_pct: float = 0.02  # Cap at 2%
+) -> float:
+    """
+    Calculate adaptive limit price offset based on recent volatility.
+    Higher ATR = wider offset to improve fill probability.
+    """
+    if len(df) < 14:
+        return base_offset_pct
+    
+    # Calculate ATR safely
+    try:
+        current_atr = atr(df["high"], df["low"], df["close"], n=14).iloc[-1]
+        current_price = df["close"].iloc[-1]
+        
+        if pd.isna(current_atr) or current_price <= 0:
+            return base_offset_pct
+        
+        # ATR as percentage of price
+        atr_pct = float(current_atr) / float(current_price)
+        
+        # Adaptive offset: base + (atr_pct * multiplier)
+        adaptive_offset = base_offset_pct + (atr_pct * atr_multiplier)
+        
+        return min(adaptive_offset, max_offset_pct)
+    except Exception:
+        return base_offset_pct
+
 def plan_orders(
     current_positions: Dict[str, float],
     target: TargetExposure,
     current_price: float,
     minutes_to_close: int,
     min_trade_value: float = 200.0,
-    emergency_override: bool = False
+    emergency_override: bool = False,
+    price_df: pd.DataFrame | None = None,
 ) -> List[OrderIntent]:
     """
     Convert a target exposure into a list of order intents.
@@ -70,11 +116,18 @@ def plan_orders(
     else:
         order_type = "market" if emergency_override else "limit"
         tif = "day"
-        # Price improvement anchor: buy slightly below, sell slightly above
-        if delta > 0:
-            limit_price = round(current_price * 0.995, 2)
+        
+        # Calculate adaptive offset
+        if price_df is not None and len(price_df) >= 14:
+            offset = calculate_adaptive_limit_offset(price_df)
         else:
-            limit_price = round(current_price * 1.005, 2)
+            offset = 0.005  # Fallback to 0.5%
+        
+        # Price improvement/offset anchor
+        if delta > 0:
+            limit_price = round(current_price * (1 - offset), 2)
+        else:
+            limit_price = round(current_price * (1 + offset), 2)
 
     side = "BUY" if delta > 0 else "SELL"
     

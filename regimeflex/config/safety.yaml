@@ -1,0 +1,18 @@
+# Safety Wrapper Configuration
+# Shield protection for RegimeFlex execution logic
+
+stale_data:
+  enabled: true
+  threshold_seconds: 60              # Abort trade if data older than 60 seconds
+  alert_channel: "telegram"          # telegram | discord | log_only
+
+slippage_protection:
+  enabled: true
+  buffer_pct: 0.0005                 # 0.05% buffer for limit orders
+  force_limit_orders: true           # Convert all market orders to limit orders
+
+duplicate_prevention:
+  enabled: true
+  state_file: "data/trading_state.json"
+  lock_timeout_seconds: 300          # Auto-release stale locks after 5 minutes
+  check_on_startup: true             # Validate and clean state on bot startup

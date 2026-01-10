@@ -4,3 +4,7 @@ verbosity: "full"       # brief | full
 
 # NEW
 decision_ping: true   # send a short alert when within the EOD window
+
+heartbeat:
+  enabled: true
+  time: "EOD"   # informational only; we send right after run completes

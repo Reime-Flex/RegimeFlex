@@ -32,3 +32,50 @@ coalescing:
   close_dust_shares: 1.0         # if remaining position < this, treat as dust → single intent
   min_open_notional: 200.0       # don't open new side if notional < this (pairs with your constraints)
   prefer_single_leg_if_net_small: true  # if sell_to_zero and buy_new nearly cancel, emit only larger leg
+
+sanity:
+  mutual_exclusive_sides:
+    enabled: true
+    threshold: 0.05     # if BOTH sides > 5% → violation
+    action: "error"     # "error" | "clamp"
+
+drift:
+  enabled: true
+  shares_eps: 1.0          # warn if |Δshares| > 1 share
+  notional_eps: 200.0      # OR if |Δnotional| > $200 (using common-date prices)
+  symbols: ["QQQ","PSQ"]   # empty = check all execution symbols
+
+rounding:
+  enabled: true
+  share_step: 0.001         # round shares to nearest 0.001
+  exposure_epsilon: 0.00005 # 0.5 bp: if desired – prev within this, snap to prev
+
+panic_guard:
+  enabled: true
+  out_dir: "logs/audit"
+  filename: "panic.json"   # will be timestamped on write
+  telegram_alert: true     # send a short WARN via Telegram if available
+
+adv_guardrail:
+  enabled: true          # set false to disable enforcement
+  crit_frac: 0.10        # hard cap as fraction of ADV (e.g., 0.10 = 10%)
+  action: "block"        # "block" = no-op the day; "scale" = reduce qty to cap
+  notes: true            # annotate breadcrumbs/report with what happened
+
+kill_switch:
+  enabled: true
+  # If average slippage for the day is worse than this (bps), block trades.
+  max_slippage_bps: 30.0
+  # If number of RED liquidity checks (order vs ADV) exceeds this, block.
+  max_red_liquidity_checks: 5
+  # If ADV guard raised any violations, optionally block.
+  block_on_adv_violation: true
+  # If the run is already a no-op for some other guard, we don't need to "re-kill".
+  respect_existing_no_op: true
+
+anomaly_alerts:
+  enabled: true
+  # If avg slippage exceeds this but is still below kill_switch, log a WARNING.
+  slippage_soft_bps: 20.0
+  # If RED liquidity checks exceed this (but below kill-switch), log a WARNING.
+  liquidity_red_soft: 3

@@ -1,6 +1,9 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Dict, List
+from pathlib import Path
+from datetime import datetime, timezone
+import json
+from typing import Dict, List, Any
 
 from .exec_planner import OrderIntent
 from .positions import apply_fills
@@ -52,3 +55,29 @@ def apply_simulated_fills(current_positions: Dict[str, float], fills: List[SimFi
     deltas = fills_to_position_deltas(fills)
     RF.print_log(f"Applying fills → deltas {deltas}", "INFO")
     return apply_fills(current_positions, deltas)
+
+# ----- Fill logging for execution quality -----
+
+def append_fill(store: Path, fill: Dict[str, Any]) -> None:
+    store.parent.mkdir(parents=True, exist_ok=True)
+    # minimal schema, no assumptions
+    row = {
+        "ts_utc": datetime.now(timezone.utc).isoformat().replace("+00:00","Z"),
+        **fill
+    }
+    with store.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(row, ensure_ascii=False) + "\n")
+
+def load_fills(store: Path, limit: int | None = None):
+    if not store.exists():
+        return []
+    lines = store.read_text(encoding="utf-8").splitlines()
+    if limit is not None:
+        lines = lines[-limit:]
+    out = []
+    for ln in lines:
+        try:
+            out.append(json.loads(ln))
+        except Exception:
+            pass
+    return out

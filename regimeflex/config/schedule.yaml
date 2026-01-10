@@ -1,13 +1,38 @@
-# When the daily runner should operate (UTC)
-daily_run_utc: "21:10"
-run_days: ["Mon","Tue","Wed","Thu","Fri"]
-no_trade_dates: []   # ISO dates like "2025-12-25"
-
-# NEW (optional overrides; ISO dates YYYY-MM-DD)
-fomc_dates: []      # e.g., ["2025-11-05","2025-12-17"]
-opex_overrides: []  # extra dates to treat as OPEX (if exchanges add quirks)
-fomc_blackout_window: [-1, 1]   # day before and day after
-
+daily_run_utc: '21:10'
 eod_guard:
-  min_minutes_before_close: 30   # require we're within 30 minutes of close
-  allow_early_override: false    # set true to bypass the guard
+  allow_early_override: false
+  min_minutes_before_close: 30
+fomc_blackout_window:
+- -1
+- 1
+fomc_dates: []
+market_day_gate:
+  calendar: NYSE
+  enabled: true
+  timezone: America/New_York
+market_session:
+  block_full_holidays: true
+  block_half_days: true
+  calendar: XNYS
+  halfday_close_utc: '18:00'
+no_trade_dates: []
+opex_overrides: []
+run_days:
+- Mon
+- Tue
+- Wed
+- Thu
+- Fri
+window_gate:
+  block_weekends: true
+  enabled: false
+  end: '16:00'
+  start: '15:50'
+  timezone: America/New_York
+
+morning_rush:
+  enabled: true
+  start: '09:30'
+  end: '09:45'
+  timezone: America/New_York
+  block_all_trades: true  # Block all trades during this window

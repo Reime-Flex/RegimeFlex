@@ -1,0 +1,58 @@
+# Guardian Module Configuration
+enabled: true
+
+# Multi-channel alerting configuration
+alerting:
+  discord:
+    enabled: false
+    webhook_url_env: "DISCORD_WEBHOOK_URL"  # environment variable name
+  
+  telegram:
+    enabled: true
+    # Uses existing TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID from env
+
+  # Priority escalation: which channels for which severity
+  routing:
+    info: ["telegram"]           # routine messages
+    warning: ["telegram", "discord"]
+    emergency: ["telegram", "discord"]  # all channels for critical
+
+# Scheduled heartbeat configuration
+heartbeat:
+  enabled: true
+  interval_hours: 4              # send heartbeat every N hours
+  include_equity: true           # include account equity in message
+  include_regime: true           # include current regime
+  include_uptime: true           # include process uptime
+  include_last_cycle: true       # include last successful cycle time
+
+# Circuit breaker for API calls
+circuit_breaker:
+  enabled: true
+  max_failures: 3                # failures before circuit opens
+  retry_delays: [1, 2, 4]        # exponential backoff in seconds
+  reset_timeout_sec: 300         # auto-reset after 5 minutes
+  emergency_on_open: true        # send EMERGENCY alert when circuit opens
+  
+  # Per-service overrides (optional)
+  services:
+    alpaca:
+      max_failures: 3
+    polygon:
+      max_failures: 5            # polygon is less critical, more tolerant
+
+# Watchdog timer for trading loop health
+watchdog:
+  enabled: true
+  timeout_minutes: 10            # max time between cycle completions
+  heartbeat_file: ".guardian_heartbeat"
+  action_on_stale: "restart"     # restart | alert_only
+  check_interval_sec: 60         # how often watchdog checks heartbeat
+
+# Emergency contact (SMS/phone integration)
+emergency:
+  enabled: false                    # Set to true to enable phone alerts
+  phone_env: "GUARDIAN_EMERGENCY_PHONE"  # Phone number env var (e.g., "+1234567890")
+  # Twilio configuration (optional, for SMS)
+  # Set env vars: TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER
+  # Or use webhook: GUARDIAN_EMERGENCY_WEBHOOK (for IFTTT, Zapier, etc.)

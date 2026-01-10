@@ -1,3 +1,51 @@
 turnover_stability:
   window_days: 7        # lookback window for averaging turnover
   warn_threshold: 0.25  # warn if avg turnover > 25% of equity/day
+
+signal_stability:
+  enabled: true
+  lookback_days: 14
+  engines: ["trend", "mr"]   # identifiers you use in signals.py
+
+regime_accuracy:
+  enabled: true
+  lookahead_days: 5          # compare label at t to proxy computed over (t+1..t+5)
+  min_history: 60            # don't score if we lack depth
+  proxy:
+    vol_window: 20           # realized vol window (for scaling)
+    bull_trend_rule: "SMA20>SMA50 AND CLOSE>SMA200"
+    high_vol_threshold: 0.35 # 35% annualized realized vol => bear bias
+
+signal_stability:
+  enabled: true
+  lookback_days: 14
+  engines: ["trend", "mr"]   # identifiers you use in signals.py
+
+execution_quality:
+  enabled: true
+  ref: "close"      # "mid" | "close" | "last"  (we won't guess availability)
+  window: 20        # rolling N trades
+  store_path: "logs/audit/fills.jsonl"  # append-only fill log
+
+exposure_concentration:
+  enabled: true
+  # thresholds expressed as fraction of equity (0..1)
+  side_caps:
+    warn: 0.80     # amber if |net long - net short| > 80%
+    crit: 0.95     # red   if > 95%
+  symbol_caps:
+    warn: 0.80     # amber if any symbol weight > 80%
+    crit: 0.95     # red   if > 95%
+
+liquidity_depth:
+  enabled: true
+  adv_window: 20          # rolling days for ADV
+  warn_frac: 0.05         # amber if order_notional > 5% of ADV
+  crit_frac: 0.10         # red   if order_notional > 10% of ADV
+
+fill_quality_drift:
+  enabled: true
+  baseline_days: 30     # lookback window to compute baseline avg slippage
+  compare_window: 20    # current rolling window (should match execution_quality.window)
+  worsen_bps: 3.0       # alert if current_avg - baseline_avg > 3 bps
+  store_path: "logs/audit/fills.jsonl"   # same file used in Step 83

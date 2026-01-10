@@ -26,11 +26,39 @@ class MRSignal:
 
 # ---------- Regime detection ----------
 
-def detect_regime(qqq_close: pd.Series, slow: int = 200) -> RegimeState:
-    slow_ma = sma(qqq_close, slow)
-    bull = bool((qqq_close.iloc[-1] > slow_ma.iloc[-1]) if pd.notna(slow_ma.iloc[-1]) else False)
+from datetime import datetime, timezone
+
+def detect_regime(qqq_close: pd.Series, slow: int = 200, require_complete_bar: bool = True) -> RegimeState:
+    if require_complete_bar and len(qqq_close) > 0:
+        last_bar_date = qqq_close.index[-1]
+        today = datetime.now(timezone.utc).date()
+        # Ensure we're using yesterday's close or earlier (complete bars only)
+        if hasattr(last_bar_date, 'date'):
+            bar_date = last_bar_date.date() if hasattr(last_bar_date, 'tz') else last_bar_date
+            if isinstance(bar_date, datetime):
+                bar_date = bar_date.date()
+            if bar_date >= today:
+                # Use T-1 bar instead
+                if len(qqq_close) > 1:
+                    qqq_close_to_use = qqq_close.iloc[:-1]
+                else:
+                    qqq_close_to_use = qqq_close # Cannot trunc
+            else:
+                 qqq_close_to_use = qqq_close
+        else:
+            qqq_close_to_use = qqq_close
+    else:
+        qqq_close_to_use = qqq_close
+
+    slow_ma = sma(qqq_close_to_use, slow)
+    close_val = qqq_close_to_use.iloc[-1]
+    ma_val = slow_ma.iloc[-1]
+    
+    # Use epsilon comparison to prevent floating-point noise
+    EPSILON = 1e-6
+    bull = bool((close_val - ma_val) > EPSILON if pd.notna(ma_val) else False)
     # caller can also compute rvol + provide VIX
-    rvol20 = realized_vol_pct_change(qqq_close, 20).iloc[-1] if qqq_close.size else None
+    rvol20 = realized_vol_pct_change(qqq_close_to_use, 20).iloc[-1] if qqq_close_to_use.size else None
     return RegimeState(bull=bull, vix=None, qqq_rvol_20=float(rvol20) if pd.notna(rvol20) else None)
 
 # ---------- Trend engine (refined) ----------
@@ -87,7 +115,16 @@ def mr_signal(df: pd.DataFrame, regime: RegimeState,
     vol = df["volume"]
     mu = sma(close, z_len)
     sd = rolling_std(close, z_len)
-    z = float(((close.iloc[-1] - mu.iloc[-1]) / sd.iloc[-1])) if (pd.notna(mu.iloc[-1]) and pd.notna(sd.iloc[-1]) and sd.iloc[-1] != 0) else None
+    
+    SD_EPSILON = 1e-8
+    sd_val = sd.iloc[-1]
+    
+    # Guard against near-zero std (choppy market, no volatility)
+    if pd.notna(sd_val) and sd_val < SD_EPSILON:
+        return MRSignal(direction="FLAT", entry=False, exit=False, z=None, 
+                       reason="Std deviation too small for reliable z-score")
+                       
+    z = float(((close.iloc[-1] - mu.iloc[-1]) / sd_val)) if (pd.notna(mu.iloc[-1]) and pd.notna(sd_val) and sd_val >= SD_EPSILON) else None
 
     # Volume confirmation: volume > 1.2 × SMA(volume, 20)
     vavg = sma(vol, 20).iloc[-1] if vol.size else None

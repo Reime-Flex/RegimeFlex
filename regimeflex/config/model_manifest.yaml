@@ -1,0 +1,26 @@
+model:
+  name: "RegimeFlex"
+  version: "1.0.0"
+  # High-level description
+  description: >
+    Trend + regime-aware mean-reversion system on QQQ/short-QQQ with
+    ATR-based risk sizing, volatility filters, and multi-layered guards.
+  # Components that define the "model identity"
+  components:
+    signals:
+      - "trend_engine_v1"
+      - "mr_engine_v1"
+    risk:
+      - "atr_sizing_v1"
+      - "vol_regime_filter_v1"
+    guards:
+      - "adv_guard_v1"
+      - "turnover_guard_v1"
+      - "session_guard_v1"
+  # Optional tags (for your own future use)
+  tags:
+    - "ndx"
+    - "eod"
+    - "systematic"
+    - "long_short"
+

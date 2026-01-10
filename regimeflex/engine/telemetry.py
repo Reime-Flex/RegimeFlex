@@ -42,6 +42,42 @@ class Notifier:
             RF.print_log("[TELEGRAM] event loop in use; falling back to dry-run", "RISK")
             RF.print_log(f"[TELEGRAM DRY-RUN]\n{text}", "INFO")
 
+    def send_heartbeat(self, bc: dict):
+        # minimal, single-line
+        parts = []
+        parts.append("💓 *RegimeFlex Heartbeat*")
+        if bc.get("config_hash16"):
+            parts.append(f"`{bc['config_hash16']}`")
+        if bc.get("price_common_date"):
+            parts.append(f"· {bc['price_common_date']}")
+        pair = f"{bc.get('exec_long','')} / {bc.get('exec_short','')}"
+        if pair.strip() and pair.strip() != " / ":
+            parts.append(f"· {pair}")
+        dur = bc.get("run_duration_sec")
+        if dur is not None:
+            try: 
+                parts.append(f"· {float(dur):.2f}s")
+            except: 
+                pass
+        if bc.get("no_op"):
+            parts.append(f"· no-op: *{bc.get('no_op_reason','')}*")
+        if bc.get("price_stale", False):
+            parts.append("· ⚠️ stale prices")
+        if bc.get("drift_warn", False):
+            parts.append("· ⚠️ drift")
+        
+        # Priority 3: Add System Health to Heartbeat
+        try:
+            health = check_system_health()
+            health_summary = format_health_summary(health)
+            parts.append(f"· {health_summary}")
+            bc["system_health"] = health  # Add to crumbs for logging
+        except Exception as e:
+            RF.print_log(f"System health check failed in heartbeat: {e}", "RISK")
+        
+        msg = " ".join(parts)
+        self.send(msg)
+
     @staticmethod
     def format_run_summary(result: Dict[str, Any], verbosity: str = "brief") -> str:
         t = result.get("target", {})
@@ -67,6 +103,10 @@ class Notifier:
             f"*FOMC* blackout: {bc.get('fomc_blackout', False)}   *OPEX*: {bc.get('opex', False)}",
         ]
 
+        sess = bc.get("session","")
+        if sess:
+            brief.append(f"*Session*: {sess}")
+
         phase = bc.get("phase", "")
         if phase:
             brief.append(f"*Phase*: {phase}")
@@ -88,6 +128,9 @@ class Notifier:
         if reason:
             brief.append(f"*Why*: {reason}")
 
+        if bc.get("cash_mode", False):
+            brief.append("*Target*: CASH (0% exposure)")
+
         tovf = bc.get("turnover_frac", None)
         tovn = bc.get("turnover_note", "")
         if tovf is not None:
@@ -105,16 +148,36 @@ class Notifier:
 
         pcd = bc.get("price_common_date", "")
         if pcd:
-            brief.append(f"*Price date*: {pcd}")
+            brief.append(f"*As-of*: {pcd}")
+
+        # Config echo
+        ce = bc.get("config_echo", {})
+        if ce:
+            brief.append(f"*CFG*: {ce.get('pair','')}, eod {ce.get('eod','')}, tov {ce.get('turnover','')}")
 
         stale = bc.get("price_stale", False)
         if stale:
             lag = bc.get("price_staleness_days", 0)
             brief.append(f"*Data stale*: {int(lag)}d old")
 
+        if bc.get("sanity_violation", False):
+            brief.append(f"*Sanity*: {bc.get('sanity_note','')}")
+
+        if bc.get("drift_warn", False):
+            brief.append("*Drift*: WARN (broker≠local)")
+        elif bc.get("drift_note","") == "no_broker_snapshot":
+            brief.append("*Drift*: n/a (no broker)")
+        elif bc.get("drift_note","") == "OK":
+            brief.append("*Drift*: OK")
+
         no_op = bc.get("no_op", False)
         if no_op:
             brief.append(f"*No-op*: {bc.get('no_op_reason','')}")
+
+        if bc.get("env_forced_dry_run", False):
+            brief.append("⚠️ *ENV GUARD*: forced dry_run")
+        elif bc.get("dry_run", False):
+            brief.append("_dry_run_")
 
         dur = bc.get("run_duration_sec", None)
         if dur is not None:
@@ -132,6 +195,68 @@ class Notifier:
             if warn:
                 line += " ⚠️"
             brief.append(line)
+
+        # Report hash
+        rh = bc.get("report_sha256", "")
+        if rh:
+            brief.append(f"*Report hash*: `{rh[:8]}…`")
+
+        # Config hash
+        if bc.get("config_hash16"):
+            brief.append(f"`{bc['config_hash16']}`")
+
+        # Bar hygiene
+        if bc.get("bar_hygiene_fail", False):
+            brief.append("*Bar hygiene*: FAIL")
+
+        # Signal stability
+        stab = bc.get("signal_stability", {})
+        if stab and "note" not in stab:
+            try:
+                t = stab.get("trend", {})
+                m = stab.get("mr", {})
+                # Example: STAB T:0.86/2  MR:0.71/4  (score/flipcount)
+                brief.append(f"*STAB* T:{t.get('score','-')}/{t.get('flips','-')} MR:{m.get('score','-')}/{m.get('flips','-')}")
+            except Exception:
+                pass
+
+        # Execution quality
+        eq = bc.get("exec_quality", {})
+        if eq and eq.get("count",0) > 0 and eq.get("avg_bps") is not None:
+            brief.append(f"*Slippage* {eq['avg_bps']}bps (p95 {eq['p95_bps']} / n={eq['count']})")
+
+        # Exposure concentration
+        xc = bc.get("exposure_concentration", {})
+        if xc:
+            net_pct = xc.get("net_abs", 0.0)
+            net_badge = xc.get("net_badge", "")
+            peak_sym = xc.get("peak_symbol", "")
+            peak_pct = xc.get("peak_abs", 0.0)
+            peak_badge = xc.get("peak_badge", "")
+            conc_line = f"*Conc* net {net_pct:.0%} {net_badge}"
+            if peak_sym:
+                conc_line += f" · {peak_sym}: {peak_pct:.0%} {peak_badge}"
+            brief.append(conc_line)
+
+        # Liquidity depth
+        liq = bc.get("liquidity_depth", {})
+        if liq and liq.get("rows"):
+            cts = liq.get("counts", {})
+            brief.append(f"*Liquidity* G:{cts.get('GREEN',0)} A:{cts.get('AMBER',0)} R:{cts.get('RED',0)}")
+
+        # Fill-quality drift
+        fd = bc.get("fill_quality_drift", {})
+        if fd and (fd.get("current_avg") is not None) and (fd.get("baseline_avg") is not None):
+            s = f"*Drift* {fd['current_avg']} vs {fd['baseline_avg']} bps"
+            if fd.get("alert"):
+                s += f" (Δ {fd.get('delta_bps','?')} > {fd.get('threshold_bps','?')}) ⚠️"
+            brief.append(s)
+
+        # ADV guardrail
+        ag = bc.get("adv_guardrail", {})
+        if ag and ag.get("violations"):
+            act = ag.get("action", "")
+            brief.append(f"*ADV* {act} {len(ag['violations'])} viol")
 
         if verbosity == "full":
             brief.append(f"*Notes*: `{bc.get('target_notes','')}`")

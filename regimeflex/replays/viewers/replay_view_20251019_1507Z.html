@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+    <title>Replay View 2025-10-19</title>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif;
+            padding: 24px;
+            max-width: 1200px;
+            margin: 0 auto;
+            background: #ffffff;
+            color: #333;
+            line-height: 1.6;
+        }
+        h1 {
+            color: #1a237e;
+            border-bottom: 3px solid #1a237e;
+            padding-bottom: 12px;
+        }
+        pre {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 12px;
+            overflow-x: auto;
+            font-size: 13px;
+            font-family: 'Monaco', 'Menlo', 'Consolas', monospace;
+        }
+        .meta {
+            background: #e3f2fd;
+            border-left: 4px solid #1a237e;
+            padding: 12px;
+            margin-bottom: 24px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Replay Viewer</h1>
+    <div class="meta">
+        <p><b>As-of Date:</b> 2025-10-19</p>
+        <p><b>Timestamp (UTC):</b> 2025-10-19T19:17:00Z</p>
+        <p><b>Brand:</b> RegimeFlex</p>
+        <p><b>Config Hash:</b> <code>a1b2c3d4e5f6</code></p>
+    </div>
+    
+
+    <section style="margin-bottom:24px; border:1px solid #e0e0e0; border-radius:4px; padding:16px; background:#fafafa;">
+      <h2 style="border-bottom:2px solid #1a237e; padding-bottom:8px; margin-top:0; color:#1a237e;">Annotation</h2>
+      
+        <p><b>Summary:</b> Replay snapshot for 2025-10-19</p>
+        <p><b>Intents:</b> 2</p>
+        <p><b>No-op:</b> False</p>
+        <p><b>No-op reason:</b> </p>
+        <p><b>Long Symbol:</b> QQQ</p>
+        <p><b>Short Symbol:</b> PSQ</p>
+    
+    </section>
+    
+
+    <section style="margin-bottom:24px; border:1px solid #e0e0e0; border-radius:4px; padding:16px; background:#fafafa;">
+      <h2 style="border-bottom:2px solid #1a237e; padding-bottom:8px; margin-top:0; color:#1a237e;">State</h2>
+      
+        <h3 style="color:#666; margin-top:0;">Positions BEFORE</h3>
+        <pre>{
+  &quot;QQQ&quot;: 100.0,
+  &quot;PSQ&quot;: -500.0
+}</pre>
+        
+        <h3 style="color:#666; margin-top:16px;">Intents</h3>
+        <div style='margin-left:20px; margin-bottom:8px;'><b>Item 1:</b><br/><b>symbol:</b> QQQ<br/><b>side:</b> buy<br/><b>shares:</b> 50.0</div><br/><div style='margin-left:20px; margin-bottom:8px;'><b>Item 2:</b><br/><b>symbol:</b> PSQ<br/><b>side:</b> sell<br/><b>shares:</b> 100.0</div>
+        
+        <h3 style="color:#666; margin-top:16px;">Positions AFTER</h3>
+        <pre>{
+  &quot;QQQ&quot;: 150.0,
+  &quot;PSQ&quot;: -600.0
+}</pre>
+    
+    </section>
+    
+
+    <section style="margin-bottom:24px; border:1px solid #e0e0e0; border-radius:4px; padding:16px; background:#fafafa;">
+      <h2 style="border-bottom:2px solid #1a237e; padding-bottom:8px; margin-top:0; color:#1a237e;">Guards</h2>
+      
+        <pre>{
+  &quot;session&quot;: &quot;regular&quot;,
+  &quot;session_note&quot;: &quot;Normal trading session&quot;,
+  &quot;no_op&quot;: false,
+  &quot;no_op_reason&quot;: &quot;&quot;,
+  &quot;bar_hygiene&quot;: {
+    &quot;fail&quot;: false,
+    &quot;notes&quot;: {}
+  },
+  &quot;asof_check&quot;: &quot;2025-10-19&quot;,
+  &quot;adv_guard&quot;: {
+    &quot;passed&quot;: true,
+    &quot;max_adv_frac&quot;: 0.15
+  },
+  &quot;liquidity_depth&quot;: {
+    &quot;qqq_bid_ask_spread&quot;: 0.01,
+    &quot;psq_bid_ask_spread&quot;: 0.02
+  }
+}</pre>
+    
+    </section>
+    
+
+    <section style="margin-bottom:24px; border:1px solid #e0e0e0; border-radius:4px; padding:16px; background:#fafafa;">
+      <h2 style="border-bottom:2px solid #1a237e; padding-bottom:8px; margin-top:0; color:#1a237e;">Metrics</h2>
+      
+        <pre>{
+  &quot;signal_stability&quot;: {
+    &quot;score&quot;: 0.85,
+    &quot;status&quot;: &quot;stable&quot;
+  },
+  &quot;regime_accuracy&quot;: {
+    &quot;score&quot;: 0.92,
+    &quot;confidence&quot;: &quot;high&quot;
+  },
+  &quot;exec_quality&quot;: {
+    &quot;estimated_slippage&quot;: 0.001,
+    &quot;status&quot;: &quot;good&quot;
+  },
+  &quot;fill_quality_drift&quot;: {
+    &quot;drift_bps&quot;: 2.5
+  },
+  &quot;exposure_concentration&quot;: {
+    &quot;long_concentration&quot;: 0.65,
+    &quot;short_concentration&quot;: 0.35
+  }
+}</pre>
+    
+    </section>
+    
+
+    <section style="margin-bottom:24px; border:1px solid #e0e0e0; border-radius:4px; padding:16px; background:#fafafa;">
+      <h2 style="border-bottom:2px solid #1a237e; padding-bottom:8px; margin-top:0; color:#1a237e;">Symbol Tails</h2>
+      
+            <div style="margin-bottom:20px; padding:12px; background:#fff; border:1px solid #ddd; border-radius:4px;">
+                <h3 style="margin-top:0; color:#1a237e;">QQQ</h3>
+                <p><b>Last price:</b> 385.5</p>
+                <p><b>Price tail (2 bars):</b></p>
+                <pre>[
+  {
+    &quot;date&quot;: &quot;2025-10-19&quot;,
+    &quot;open&quot;: 384.2,
+    &quot;high&quot;: 386.1,
+    &quot;low&quot;: 383.8,
+    &quot;close&quot;: 385.5,
+    &quot;volume&quot;: 45000000
+  },
+  {
+    &quot;date&quot;: &quot;2025-10-18&quot;,
+    &quot;open&quot;: 382.1,
+    &quot;high&quot;: 384.5,
+    &quot;low&quot;: 381.9,
+    &quot;close&quot;: 384.2,
+    &quot;volume&quot;: 42000000
+  }
+]</pre>
+            </div>
+            
+            <div style="margin-bottom:20px; padding:12px; background:#fff; border:1px solid #ddd; border-radius:4px;">
+                <h3 style="margin-top:0; color:#1a237e;">PSQ</h3>
+                <p><b>Last price:</b> 15.25</p>
+                <p><b>Price tail (2 bars):</b></p>
+                <pre>[
+  {
+    &quot;date&quot;: &quot;2025-10-19&quot;,
+    &quot;open&quot;: 15.3,
+    &quot;high&quot;: 15.35,
+    &quot;low&quot;: 15.2,
+    &quot;close&quot;: 15.25,
+    &quot;volume&quot;: 1200000
+  },
+  {
+    &quot;date&quot;: &quot;2025-10-18&quot;,
+    &quot;open&quot;: 15.4,
+    &quot;high&quot;: 15.45,
+    &quot;low&quot;: 15.25,
+    &quot;close&quot;: 15.3,
+    &quot;volume&quot;: 1100000
+  }
+]</pre>
+            </div>
+            
+    </section>
+    
+
+    <section style="margin-bottom:24px; border:1px solid #e0e0e0; border-radius:4px; padding:16px; background:#fafafa;">
+      <h2 style="border-bottom:2px solid #1a237e; padding-bottom:8px; margin-top:0; color:#1a237e;">Provenance</h2>
+      
+        <pre>{
+  &quot;config_hash&quot;: &quot;abc123def456ghi789jkl012mno345pqr678stu901vwx234yz&quot;,
+  &quot;config_hash16&quot;: &quot;a1b2c3d4e5f6&quot;,
+  &quot;report_sha256&quot;: &quot;fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210&quot;,
+  &quot;price_source&quot;: {
+    &quot;provider&quot;: &quot;alpaca&quot;,
+    &quot;timestamp&quot;: &quot;2025-10-19T19:15:00Z&quot;
+  }
+}</pre>
+    
+    </section>
+    
+</body></html>

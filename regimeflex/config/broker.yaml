@@ -1,7 +1,18 @@
+# Top-level dry_run flag (can be overridden by REGIMEFLEX_DRY_RUN env var)
+dry_run: false         # default: real orders when ready; set to true or use REGIMEFLEX_DRY_RUN=1 for shadow mode
+
 alpaca:
   enabled: true        # enable broker integration in daily run
   mode: "paper"        # paper | live
-  dry_run: true        # master safety; true = never POST
+  dry_run: true        # master safety; true = never POST (deprecated: use top-level dry_run or REGIMEFLEX_DRY_RUN)
+  required_env:
+    - "ALPACA_KEY"
+    - "ALPACA_SECRET"
+
+telemetry:
+  required_env:
+    - "TELEGRAM_BOT_TOKEN"
+    - "TELEGRAM_CHAT_ID"
 
 constraints:
   lot_size: 1          # whole-share ETFs

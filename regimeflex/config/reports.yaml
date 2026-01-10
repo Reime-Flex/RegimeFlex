@@ -1,0 +1,32 @@
+index:
+  max_items: 30    # how many recent artifacts to show
+  title: "RegimeFlex — Reports"
+
+retention:
+  enabled: true
+  keep:
+    html_reports:   { pattern: "daily_report_*.html",  max: 60 }
+    changes_csv:    { pattern: "changes_*.csv",        max: 120 }
+    orders_preview: { pattern: "orders_preview_*.csv", max: 60 }
+
+logs_rotation:
+  enabled: true
+  days_old: 7
+  include:
+    - "logs/trading/*.log"
+    - "logs/audit/*.jsonl"
+  exclude_gz: true   # skip files that are already .gz
+
+checksums:
+  enabled: true
+  include_patterns:
+    - "daily_report_*.html"
+    - "changes_*.csv"
+    - "orders_preview_*.csv"
+
+replay_pack:
+  enabled: true
+  out_dir: "replays"
+  include_prices: true      # embed last bar(s) you actually used
+  bars_tail: 5              # how many daily bars per symbol to include (for MR z-score etc.)
+

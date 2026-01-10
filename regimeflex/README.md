@@ -439,6 +439,46 @@ python scripts/broker_place_preview.py
 python scripts/sweep_preview.py
 ```
 
+## 🔁 RegimeFlex Replay Workflow
+
+RegimeFlex produces a compact replay pack after every run, stored in `replays/` as files named `replay_YYYYMMDD_HHMMZ.json`.
+
+Each replay pack captures:
+- The exact inputs used that day (prices, bars tail, `positions_before`).
+- Guard states (session, bar hygiene, ADV guard, liquidity filters, no-op reasons).
+- Final intents and `positions_after`.
+- Config provenance (`config_hash` + `config_hash16`) so you can detect environment drift.
+
+### Run a replay inspection
+
+Inspect any specific pack directly:
+
+```bash
+python scripts/replay_from_pack.py replays/replay_20251019_1917Z.json
+```
+
+The script validates:
+
+- As-of date & prices
+- Positions/intents payload
+- Guard states/notes
+- Pack `config_hash16` vs local config snapshot
+
+Exit codes:
+
+- `0` → config snapshot matches (safe)
+- `1` → mismatch, missing hash, or malformed pack
+
+### Replay the most recent pack
+
+Validate the latest trading day with one command:
+
+```bash
+make replay-latest
+```
+
+This target finds the newest `replay_*.json` and runs the same verification workflow. Useful for quick smoke tests or future CI hooks. Replay packs are read-only artifacts—no broker/API interaction occurs.
+
 ## 📚 API Reference
 
 ### Core Engine Modules
