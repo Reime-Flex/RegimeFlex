@@ -2,22 +2,23 @@
 RegimeFlex HTTP Trigger Server
 
 This Flask application provides HTTP endpoints for triggering the trading system.
-Designed for Railway deployment and cron-based execution.
+Designed for Railway deployment and PM2 production execution.
 
-Execution Context:
-- Can be run directly: python regimeflex/scripts/run_http_trigger.py
-- Can be run as module: python -m regimeflex http
-- Can be run via entrypoint: python regimeflex_entrypoint.py http
+PRODUCTION EXECUTION RULE:
+This module MUST be executed as a package component:
+    python -m regimeflex http
 
-Uses absolute imports for location-independent execution.
+It MUST NOT be executed directly as a script:
+    python regimeflex/scripts/run_http_trigger.py  # ❌ NOT SUPPORTED
+
+This ensures proper package context and enables all relative imports
+throughout the regimeflex package tree.
+
+All imports use absolute imports from the regimeflex package root.
 """
 
-# Path guard: Ensure parent directory is in sys.path for absolute imports
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
-
 import os
+import sys
 import json
 from datetime import datetime, timezone
 from flask import Flask, jsonify
@@ -29,14 +30,16 @@ try:
 except ImportError:
     CORS_AVAILABLE = False
 
-# Absolute imports from regimeflex package
+# Production rule: Always use absolute imports from regimeflex package
+# These imports assume the module is executed within the package context
+# (i.e., via 'python -m regimeflex http' or 'python -m regimeflex.scripts.run_http_trigger')
 from regimeflex.engine.identity import RegimeFlexIdentity as RF
 from regimeflex.engine.killswitch import is_killed
 from regimeflex.engine.runner import run_daily_offline
 from regimeflex.engine.config import Config
 from regimeflex.engine.health import run_health
 from regimeflex.scripts.path_utils import detect_project_root, find_replay_directory, find_incidents_file
-from regimeflex.scripts.replay_utils import load_latest_replay
+from regimeflex.scripts.replay_utils import load_latest_replay_from_dir
 
 app = Flask(__name__)
 
