@@ -5,6 +5,15 @@ import pandas as pd
 
 from .indicators import atr, realized_vol_pct_change
 
+# Shadow testing imports
+from .core_logic import (
+    calculate_base_volatility_core,
+    calculate_regime_vol_adjustment_core,
+    calculate_decay_adjustment_core,
+    calculate_position_size_core
+)
+from .shadow_test import compare_floats, log_shadow_mismatch
+
 @dataclass(frozen=True)
 class RiskConfig:
     # position sizing
@@ -77,6 +86,7 @@ def dynamic_position_size(inputs: RiskInputs,
     """
     from .identity import RegimeFlexIdentity as RF
     
+    # OLD CODE PATH
     base_vol = _base_vol(close, high, low, cfg.atr_len)  # ATR/price
     if base_vol <= 0 or math.isnan(base_vol):
         return 0.0, "Invalid base_vol"
@@ -121,5 +131,43 @@ def dynamic_position_size(inputs: RiskInputs,
         max_cap = max_cap * 0.85
     
     target = min(size, max_cap)
+    
+    # SHADOW TEST: Compare with new core logic
+    base_vol_new = calculate_base_volatility_core(close, high, low, cfg.atr_len)
+    regime_vol_adjust_new = calculate_regime_vol_adjustment_core(inputs.vix, inputs.qqq_close, getattr(inputs, "is_opex", False))
+    decay_adjust_new = calculate_decay_adjustment_core(decay_stats)
+    position_size_result = calculate_position_size_core(
+        equity=inputs.equity,
+        base_vol=base_vol_new,
+        risk_budget_pct=cfg.risk_budget_pct,
+        regime_vol_adjust=regime_vol_adjust_new,
+        decay_adjust=decay_adjust_new,
+        max_position_pct=cfg.max_position_pct,
+        is_opex=getattr(inputs, "is_opex", False)
+    )
+    
+    # Compare results
+    base_vol_match = compare_floats(base_vol, base_vol_new, field_name="base_vol")
+    regime_adj_match = compare_floats(regime_vol_adjust, regime_vol_adjust_new, field_name="regime_vol_adjust")
+    decay_adj_match = compare_floats(decay_adjust, decay_adjust_new, field_name="decay_adjust")
+    target_match = compare_floats(float(target), position_size_result.target_dollars, field_name="target_dollars")
+    
+    errors = []
+    if not base_vol_match.match:
+        errors.append(base_vol_match.error_message or "")
+    if not regime_adj_match.match:
+        errors.append(regime_adj_match.error_message or "")
+    if not decay_adj_match.match:
+        errors.append(decay_adj_match.error_message or "")
+    if not target_match.match:
+        errors.append(target_match.error_message or "")
+    
+    if errors:
+        log_shadow_mismatch(
+            "dynamic_position_size",
+            errors,
+            {"base_vol": base_vol, "regime_adj": regime_vol_adjust, "decay_adj": decay_adjust, "target": float(target)},
+            {"base_vol": base_vol_new, "regime_adj": regime_vol_adjust_new, "decay_adj": decay_adjust_new, "target": position_size_result.target_dollars}
+        )
 
     return float(target), f"base_vol={base_vol:.4f}, adj={regime_vol_adjust:.2f}, decay_adj={decay_adjust:.2f}, cap={max_cap:.2f}"
