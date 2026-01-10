@@ -39,7 +39,7 @@ from regimeflex.engine.runner import run_daily_offline
 from regimeflex.engine.config import Config
 from regimeflex.engine.health import run_health
 from regimeflex.scripts.path_utils import detect_project_root, find_replay_directory, find_incidents_file
-from regimeflex.scripts.replay_utils import load_latest_replay_from_dir_from_dir
+from regimeflex.scripts.replay_utils import load_latest_replay_from_dir
 
 app = Flask(__name__)
 
