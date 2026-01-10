@@ -13,15 +13,20 @@ const PYTHON_BACKEND_URL =
 export async function GET() {
     try {
         // Fetch latest replay from Python backend
+        // Create AbortController for timeout (more compatible than AbortSignal.timeout)
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
         const res = await fetch(
             `${PYTHON_BACKEND_URL}/replay/latest`,
             { 
                 method: 'GET',
                 headers: { 'Content-Type': 'application/json' },
-                // Add timeout for Railway (5 seconds)
-                signal: AbortSignal.timeout(5000)
+                signal: controller.signal
             }
         );
+        
+        clearTimeout(timeoutId);
         
         if (!res.ok) {
             throw new Error(`Backend returned ${res.status}`);

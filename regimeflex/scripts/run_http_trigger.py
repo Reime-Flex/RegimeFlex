@@ -13,6 +13,8 @@ from engine.killswitch import is_killed
 from engine.runner import run_daily_offline
 from engine.config import Config
 from engine.health import run_health
+from .path_utils import detect_project_root, find_replay_directory, find_incidents_file
+from .replay_utils import load_latest_replay
 
 app = Flask(__name__)
 
@@ -41,7 +43,7 @@ def trigger_daily():
 @app.route("/health", methods=["GET"])
 def health():
     # Simple health check for Railway - just return OK to avoid timeout issues
-    return {"status": "ok", "timestamp": "2025-10-23T07:52:00Z"}, 200
+    return jsonify({"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}), 200
 
 @app.route("/health-full", methods=["GET"])
 def health_full():
@@ -58,37 +60,14 @@ def health_full():
 def replay_latest():
     """Return latest replay pack for frontend."""
     try:
-        # Find latest replay file
-        # Check multiple possible locations
-        possible_dirs = [
-            Path("replays"),
-            Path("data/replays"),
-            Path("regimeflex/data/replays"),
-            Path.cwd() / "replays",
-            Path.cwd() / "data" / "replays"
-        ]
+        # Use consolidated utility function
+        replay_data = load_latest_replay()
         
-        replay_dir = None
-        for dir_path in possible_dirs:
-            if dir_path.exists() and dir_path.is_dir():
-                replay_dir = dir_path
-                break
-        
-        if not replay_dir:
-            RF.print_log(f"No replay directory found. Checked: {possible_dirs}", "WARNING")
-            return jsonify({"found": False, "error": "No replay directory found"}), 404
-        
-        # Find latest replay file
-        replay_files = sorted(replay_dir.glob("replay_*.json"), reverse=True)
-        if not replay_files:
-            RF.print_log(f"No replay files found in {replay_dir}", "WARNING")
+        if not replay_data:
+            RF.print_log("No replay files found", "WARNING")
             return jsonify({"found": False, "error": "No replay files found"}), 404
         
-        latest_file = replay_files[0]
-        RF.print_log(f"Loading replay from {latest_file}", "INFO")
-        
-        with open(latest_file, 'r') as f:
-            replay_data = json.load(f)
+        RF.print_log(f"Loading replay from {replay_data.get('_path')}", "INFO")
         
         return jsonify({
             "found": True,
@@ -116,18 +95,8 @@ def status():
 def incidents():
     """Return recent incidents."""
     try:
-        # Check multiple possible locations
-        possible_files = [
-            Path("logs/incidents.jsonl"),
-            Path("data/logs/incidents.jsonl"),
-            Path("regimeflex/logs/incidents.jsonl")
-        ]
-        
-        incidents_file = None
-        for file_path in possible_files:
-            if file_path.exists():
-                incidents_file = file_path
-                break
+        # Use consolidated utility function
+        incidents_file = find_incidents_file()
         
         if not incidents_file:
             return jsonify({"count": 0, "items": []}), 200
@@ -135,7 +104,7 @@ def incidents():
         # Read last N incidents
         incidents = []
         try:
-            with open(incidents_file, 'r') as f:
+            with open(incidents_file, 'r', encoding='utf-8') as f:
                 lines = f.readlines()
                 for line in lines[-20:]:  # Last 20
                     line = line.strip()
