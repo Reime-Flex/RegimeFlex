@@ -6,15 +6,19 @@ from datetime import datetime, timezone
 from flask import Flask, jsonify
 
 # Add parent directory to path to import engine module
-sys.path.append(str(Path(__file__).parent.parent))
+regimeflex_dir = Path(__file__).parent.parent
+sys.path.insert(0, str(regimeflex_dir))
 
 from engine.identity import RegimeFlexIdentity as RF
 from engine.killswitch import is_killed
 from engine.runner import run_daily_offline
 from engine.config import Config
 from engine.health import run_health
-from .path_utils import detect_project_root, find_replay_directory, find_incidents_file
-from .replay_utils import load_latest_replay
+
+# Import path utilities (use absolute import since this is run as a script)
+# When run directly, regimeflex_dir is in sys.path, so use 'scripts' prefix
+from scripts.path_utils import detect_project_root, find_replay_directory, find_incidents_file
+from scripts.replay_utils import load_latest_replay
 
 app = Flask(__name__)
 
