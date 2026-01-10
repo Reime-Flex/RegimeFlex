@@ -44,9 +44,10 @@ def main():
         sys.exit(0)
     
     # Route to appropriate handler
+    # Use relative imports since we're inside the regimeflex package
     if command == "run":
-        from engine.runner import run_daily_offline
-        from engine.config import Config
+        from .engine.runner import run_daily_offline
+        from .engine.config import Config
         
         cfg = Config(".")
         run = cfg.run or {}
@@ -61,13 +62,13 @@ def main():
     
     elif command == "http":
         # Start HTTP server
-        from scripts.run_http_trigger import main
+        from .scripts.run_http_trigger import main
         
         main()
         sys.exit(0)
     
     elif command == "health":
-        from engine.health import run_health
+        from .engine.health import run_health
         
         rep = run_health()
         print(f"Health Status: {rep.status}")
