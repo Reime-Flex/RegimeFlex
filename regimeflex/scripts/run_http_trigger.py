@@ -94,7 +94,7 @@ def health_full():
 def replay_latest():
     """Return latest replay pack for frontend."""
     try:
-        project_root = detect_project_root()
+        project_root, _ = detect_project_root()
         replay_dir = find_replay_directory(project_root)
 
         if not replay_dir:
@@ -135,7 +135,7 @@ def status():
 def incidents():
     """Return recent incidents."""
     try:
-        project_root = detect_project_root()
+        project_root, _ = detect_project_root()
         incidents_file = find_incidents_file(project_root)
 
         if not incidents_file:
