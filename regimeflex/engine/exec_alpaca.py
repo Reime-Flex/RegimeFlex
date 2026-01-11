@@ -4,6 +4,10 @@ from typing import Dict, Any, List, Optional
 import requests
 import os
 
+# Setup Alpaca SDK environment variables at module import
+from regimeflex.config.api_keys import APIKeys
+APIKeys.setup_alpaca_env()
+
 from regimeflex.engine.exec_planner import OrderIntent
 from regimeflex.engine.identity import RegimeFlexIdentity as RF
 from regimeflex.engine.fills_state import append_fill_record
@@ -390,10 +394,16 @@ def place_order(api_or_executor, order: Dict[str, Any], root: str | Path | None 
 
 
 def get_alpaca_client_creds() -> AlpacaCreds:
-    """Get Alpaca credentials from environment variables."""
-    key = os.getenv("ALPACA_KEY") or os.getenv("APCA_API_KEY_ID")
-    secret = os.getenv("ALPACA_SECRET") or os.getenv("APCA_API_SECRET_KEY")
-    base_url = os.getenv("ALPACA_BASE_URL") or os.getenv("APCA_API_BASE_URL", ALPACA_PAPER_URL)
+    """
+    Get Alpaca credentials using the centralized APIKeys adapter.
+    
+    This function uses the APIKeys adapter which handles name normalization
+    between RegimeFlex's custom names (ALPACA_KEY) and Alpaca SDK's official
+    names (APCA_API_KEY_ID).
+    """
+    key = APIKeys.alpaca_key_id()
+    secret = APIKeys.alpaca_secret()
+    base_url = APIKeys.alpaca_base_url()
     return AlpacaCreds(key=key, secret=secret, base_url=base_url)
 
 
