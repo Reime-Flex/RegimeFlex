@@ -10,6 +10,14 @@ import pandas as pd
 
 # Absolute imports from regimeflex.engine package
 from regimeflex.engine.identity import RegimeFlexIdentity as RF
+
+# Import path constants for absolute paths
+from regimeflex.config.paths import (
+    PROJECT_ROOT,
+    GUARDIAN_HEARTBEAT_FILE,
+    POSITIONS_FILE,
+    RUN_LOCK_FILE,
+)
 from regimeflex.engine.env import load_env
 from regimeflex.engine.config import Config
 from regimeflex.engine.killswitch import is_killed
@@ -2042,7 +2050,7 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
     touch_heartbeat(
         regime=crumbs.get('phase', 'UNKNOWN'),
         equity=crumbs.get('equity_now'),
-        root=Config().root  # Config singleton has root
+        root=PROJECT_ROOT  # Use absolute project root from paths module
     )
     
     # Release run lock before final return
