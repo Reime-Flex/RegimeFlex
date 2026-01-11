@@ -22,9 +22,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from regimeflex.engine.guardian..identity import RegimeFlexIdentity as RF
-from regimeflex.engine.guardian..config import Config
+from regimeflex.engine.identity import RegimeFlexIdentity as RF
+from regimeflex.engine.config import Config
 from regimeflex.engine.guardian.system_health import check_system_health, format_health_summary
+from regimeflex.config.paths import GUARDIAN_HEARTBEAT_FILE, PROJECT_ROOT
 
 
 @dataclass
@@ -32,7 +33,7 @@ class WatchdogConfig:
     """Watchdog configuration."""
     enabled: bool = True
     timeout_minutes: int = 10
-    heartbeat_file: str = ".guardian_heartbeat"
+    heartbeat_file: str = str(GUARDIAN_HEARTBEAT_FILE)  # Use absolute path from paths module
     action_on_stale: str = "restart"  # restart | alert_only
     check_interval_sec: int = 60
 
@@ -72,10 +73,15 @@ class Watchdog:
             time.sleep(60)
     """
     
-    def __init__(self, root: Path | str = "."):
-        self.root = Path(root) if isinstance(root, str) else root
+    def __init__(self, root: Path | str = None):
+        # Use PROJECT_ROOT if root not specified, otherwise use provided root
+        if root is None:
+            self.root = PROJECT_ROOT
+        else:
+            self.root = Path(root) if isinstance(root, str) else root
         self.config = self._load_config()
-        self._heartbeat_path = self.root / self.config.heartbeat_file
+        # Use absolute path from config (already set to GUARDIAN_HEARTBEAT_FILE)
+        self._heartbeat_path = Path(self.config.heartbeat_file)
         self._cycle_count = 0
         self._alert_manager = None  # Lazy load
     
@@ -86,10 +92,18 @@ class Watchdog:
             guardian = cfg._load_yaml("config/guardian.yaml") or {}
             wd_cfg = guardian.get("watchdog", {})
             
+            # Use absolute path from paths module as default
+            heartbeat_file_config = wd_cfg.get("heartbeat_file")
+            if heartbeat_file_config:
+                # If config specifies relative path, make it absolute relative to project root
+                heartbeat_file = str(PROJECT_ROOT / heartbeat_file_config) if not Path(heartbeat_file_config).is_absolute() else heartbeat_file_config
+            else:
+                heartbeat_file = str(GUARDIAN_HEARTBEAT_FILE)
+            
             return WatchdogConfig(
                 enabled=wd_cfg.get("enabled", True),
                 timeout_minutes=wd_cfg.get("timeout_minutes", 10),
-                heartbeat_file=wd_cfg.get("heartbeat_file", ".guardian_heartbeat"),
+                heartbeat_file=heartbeat_file,
                 action_on_stale=wd_cfg.get("action_on_stale", "restart"),
                 check_interval_sec=wd_cfg.get("check_interval_sec", 60)
             )

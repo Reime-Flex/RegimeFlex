@@ -14,9 +14,7 @@ from pathlib import Path
 from typing import Optional
 
 from regimeflex.engine.identity import RegimeFlexIdentity as RF
-
-
-RUN_LOCK_FILE = Path("data/state/run.lock")
+from regimeflex.config.paths import RUN_LOCK_FILE
 LOCK_TIMEOUT_SECONDS = 300  # 5 minutes - consider lock stale after this
 
 

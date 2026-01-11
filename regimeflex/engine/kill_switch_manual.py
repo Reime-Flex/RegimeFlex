@@ -12,9 +12,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 
 from regimeflex.engine.identity import RegimeFlexIdentity as RF
-
-
-KILL_SWITCH_FILE = Path("data/state/kill_switch.json")
+from regimeflex.config.paths import KILL_SWITCH_FILE
 
 
 def is_kill_switch_active() -> Optional[Dict[str, Any]]:

@@ -96,7 +96,15 @@ def load_safety_config(root: str | Path = ".") -> SafetyConfig:
             # Duplicate prevention
             dup = raw.get("duplicate_prevention", {}) or {}
             cfg.duplicate_prevention_enabled = bool(dup.get("enabled", True))
-            cfg.state_file = str(dup.get("state_file", "data/trading_state.json"))
+            # Use absolute path from paths module as default
+            from regimeflex.config.paths import TRADING_STATE_FILE
+            state_file_config = dup.get("state_file")
+            if state_file_config:
+                # If config specifies relative path, make it absolute relative to project root
+                from regimeflex.config.paths import PROJECT_ROOT
+                cfg.state_file = str(PROJECT_ROOT / state_file_config) if not Path(state_file_config).is_absolute() else str(state_file_config)
+            else:
+                cfg.state_file = str(TRADING_STATE_FILE)
             cfg.lock_timeout_seconds = int(dup.get("lock_timeout_seconds", 300))
             cfg.check_on_startup = bool(dup.get("check_on_startup", True))
             

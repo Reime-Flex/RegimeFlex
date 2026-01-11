@@ -4,9 +4,7 @@ from pathlib import Path
 import json
 from typing import Dict
 
-STATE_DIR = Path("data/state")
-STATE_DIR.mkdir(parents=True, exist_ok=True)
-POS_PATH = STATE_DIR / "positions.json"
+from regimeflex.config.paths import POSITIONS_FILE as POS_PATH
 
 @dataclass(frozen=True)
 class Position:
