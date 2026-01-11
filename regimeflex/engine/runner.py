@@ -184,10 +184,12 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
             "config_fingerprint": fp if 'fp' in locals() else {}
         }
     
-    # Initialize incident logger
-    incidents = IncidentLogger(root=".")
-    
-    # Config echo - one concise sanity line
+    # Wrap main execution in try/finally to ensure lock is always released
+    try:
+        # Initialize incident logger
+        incidents = IncidentLogger(root=".")
+        
+        # Config echo - one concise sanity line
     echo = collect_config_echo()
     RF.print_log(
         "CFG → "
@@ -253,10 +255,9 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         except Exception as e:
             RF.print_log(f"Run summary append failed: {e}", "ERROR")
         
-        release_run_lock()
         return result
 
-    # Decision window ping (when within EOD window)
+        # Decision window ping (when within EOD window)
     tele_cfg = (Config(".").telemetry or {})
     if tele_cfg.get("decision_ping", True) and tele_cfg.get("enabled", True):
         # brief context
@@ -443,10 +444,9 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
              except Exception:
                  pass
         
-        release_run_lock()
         return result
 
-    if sess == "HALF_DAY" and block_half:
+        if sess == "HALF_DAY" and block_half:
         RF.print_log(f"Session guard: {sess} ({note}) → skip trading", "RISK")
         crumbs.update({
             "no_op": True, 
@@ -2053,8 +2053,9 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         root=PROJECT_ROOT  # Use absolute project root from paths module
     )
     
-    # Release run lock before final return
-    release_run_lock()
+    finally:
+        # Always release run lock, even if exception occurs
+        release_run_lock()
 
     return result
 
