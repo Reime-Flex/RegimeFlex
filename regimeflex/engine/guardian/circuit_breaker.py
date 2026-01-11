@@ -20,8 +20,8 @@ from pathlib import Path
 from threading import Lock
 from typing import Any, Callable, Dict, List, Optional, TypeVar
 
-from regimeflex.engine.guardian..identity import RegimeFlexIdentity as RF
-from regimeflex.engine.guardian..config import Config
+from regimeflex.engine.identity import RegimeFlexIdentity as RF
+from regimeflex.engine.config import Config
 
 T = TypeVar("T")
 
