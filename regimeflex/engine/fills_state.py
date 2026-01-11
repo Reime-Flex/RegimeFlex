@@ -2,10 +2,13 @@
 from __future__ import annotations
 from pathlib import Path
 import json
+import fcntl
 from datetime import datetime, timezone
 from regimeflex.engine.symnorm import sym_upper
+from regimeflex.config.paths import FILLS_STATE_FILE
 
-FILLS_FILE = Path("logs/trading/fills_state.jsonl")
+# Use absolute path from paths module
+FILLS_FILE = FILLS_STATE_FILE
 
 def append_fill_record(symbol: str, side: str, qty: float, status: str, filled_qty: float | None, broker_id: str | None):
     FILLS_FILE.parent.mkdir(parents=True, exist_ok=True)
@@ -19,4 +22,13 @@ def append_fill_record(symbol: str, side: str, qty: float, status: str, filled_q
         "broker_id": broker_id,
     }
     with FILLS_FILE.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(rec) + "\n")
+        if hasattr(fcntl, 'LOCK_EX'):
+            # Unix/Linux - use fcntl for file locking
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+            try:
+                f.write(json.dumps(rec) + "\n")
+            finally:
+                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+        else:
+            # Windows fallback - no fcntl, just write
+            f.write(json.dumps(rec) + "\n")

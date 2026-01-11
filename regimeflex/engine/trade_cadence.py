@@ -4,8 +4,10 @@ from pathlib import Path
 import json
 from datetime import datetime, timezone, date
 from typing import Dict, Optional
+from regimeflex.config.paths import FILLS_STATE_FILE
 
-FILLS_FILE = Path("logs/trading/fills_state.jsonl")
+# Use absolute path from paths module
+FILLS_FILE = FILLS_STATE_FILE
 
 def _parse_ts(ts: str) -> Optional[datetime]:
     try:

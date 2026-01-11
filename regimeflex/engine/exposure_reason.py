@@ -3,13 +3,14 @@ from __future__ import annotations
 import pandas as pd
 from regimeflex.engine.config import Config
 from regimeflex.engine.exposure import compute_sma, compute_bbands, ndx_extension, _realized_vol  # uses same math as allocator
+from regimeflex.config.paths import PROJECT_ROOT
 
 def compute_exposure_diagnostics(df: pd.DataFrame) -> dict:
     """
     Mirrors the allocator's inputs to summarize 'why' a given weight was chosen.
     Does NOT change any sizing; read-only diagnostics.
     """
-    exp = Config(".")._load_yaml("config/exposure.yaml")
+    exp = Config(PROJECT_ROOT)._load_yaml("config/exposure.yaml")
     fast, slow = exp["trend"]["fast_ma"], exp["trend"]["slow_ma"]
     bb_p, bb_std = exp["weights"]["bb_period"], exp["weights"]["bb_std"]
 

@@ -6,10 +6,11 @@ import csv
 from typing import Dict
 
 from regimeflex.engine.identity import RegimeFlexIdentity as RF
+from regimeflex.config.paths import LOGS_TRADING_DIR, DAILY_SNAPSHOT_CSV
 
-SNAP_DIR = Path("logs/trading")
-SNAP_DIR.mkdir(parents=True, exist_ok=True)
-SNAP_CSV = SNAP_DIR / "daily_snapshot.csv"
+# Use absolute paths from paths module
+SNAP_DIR = LOGS_TRADING_DIR
+SNAP_CSV = DAILY_SNAPSHOT_CSV
 
 def _utc_date_str() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%d")

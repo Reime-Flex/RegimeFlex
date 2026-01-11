@@ -23,7 +23,8 @@ if __name__ == "__main__":
     min_trade_value = 200.0
 
     # Load broker config
-    cfg = Config(".")._load_yaml("config/broker.yaml")
+    from regimeflex.config.paths import PROJECT_ROOT
+    cfg = Config(PROJECT_ROOT)._load_yaml("config/broker.yaml")
     alp = (cfg.get("alpaca") or {})
     DRY_RUN = bool(alp.get("dry_run", True))
     base_url = ALPACA_PAPER_URL if alp.get("mode","paper") == "paper" else ALPACA_LIVE_URL

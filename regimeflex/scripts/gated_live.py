@@ -22,25 +22,13 @@ def run(cmd: list[str], label: str) -> int:
 
 
 def main() -> int:
-    # Detect if we're at project root or regimeflex directory
-    cwd = Path(".")
-    if (cwd / "regimeflex" / "config").exists():
-        # We're at project root, use regimeflex as root
-        root = cwd / "regimeflex"
-        # Make commands should be run from project root
-        make_cwd = cwd
-        script_path = cwd / "regimeflex" / "scripts" / "run_offline_from_config.py"
-    else:
-        # We're in regimeflex directory
-        root = cwd
-        # Make commands should be run from parent (project root) if it exists
-        parent = cwd.parent
-        if (parent / "regimeflex" / "config").exists():
-            make_cwd = parent
-            script_path = cwd / "scripts" / "run_offline_from_config.py"
-        else:
-            make_cwd = cwd
-            script_path = cwd / "scripts" / "run_offline_from_config.py"
+    # Use absolute path from paths module
+    from regimeflex.config.paths import PROJECT_ROOT
+    root = PROJECT_ROOT
+    
+    # For make commands, use project root
+    make_cwd = PROJECT_ROOT
+    script_path = PROJECT_ROOT / "regimeflex" / "scripts" / "run_offline_from_config.py"
     
     incidents = IncidentLogger(root=root)
 

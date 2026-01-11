@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Dict, Tuple
 from regimeflex.engine.config import Config
 from regimeflex.engine.identity import RegimeFlexIdentity as RF
+from regimeflex.config.paths import PROJECT_ROOT
 
 def enforce_exposure_caps(weights: Dict[str, float]) -> Tuple[Dict[str, float], str]:
     """
@@ -10,7 +11,7 @@ def enforce_exposure_caps(weights: Dict[str, float]) -> Tuple[Dict[str, float], 
     Input/Output weights are fractions of equity (e.g., 0.85 == 85%).
       keys expected: "TQQQ", "SQQQ" (missing keys treated as 0).
     """
-    cfg = Config(".")._load_yaml("config/exposure.yaml")
+    cfg = Config(PROJECT_ROOT)._load_yaml("config/exposure.yaml")
     lim = (cfg.get("limits") or {})
     cap_gross = float(lim.get("max_gross", 1.0))
     cap_t = float(lim.get("max_tqqq", 1.0))

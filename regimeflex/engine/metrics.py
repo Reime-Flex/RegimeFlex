@@ -4,8 +4,10 @@ from pathlib import Path
 import json
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any, List
+from regimeflex.config.paths import RUN_SUMMARIES_FILE
 
-RUN_SUMS = Path("logs/audit/run_summaries.jsonl")
+# Use absolute path from paths module
+RUN_SUMS = RUN_SUMMARIES_FILE
 
 def _parse_date(s: str):
     # s is the "price_common_date" (YYYY-MM-DD) we stored in run_summaries

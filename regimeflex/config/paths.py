@@ -34,12 +34,15 @@ CACHE_DIR = DATA_DIR / 'cache'
 # Subdirectories
 LOGS_TRADING_DIR = LOGS_DIR / 'trading'
 LOGS_AUDIT_DIR = LOGS_DIR / 'audit'
+LOGS_DECAY_DIR = LOGS_DIR / 'decay'
+LOGS_INCIDENTS_DIR = LOGS_DIR / 'incidents'
 REPORTS_MONTHLY_DIR = REPORTS_DIR / 'monthly'
 
 # State file paths (HIGH PRIORITY - critical for operation)
 RUN_LOCK_FILE = STATE_DIR / 'run.lock'
 POSITIONS_FILE = STATE_DIR / 'positions.json'
 KILL_SWITCH_FILE = STATE_DIR / 'kill_switch.json'
+KILL_SWITCH_FLAG_FILE = CONFIG_DIR / 'kill_switch.flag'  # Flag file used by killswitch.py
 REGIME_STATE_FILE = STATE_DIR / 'regime_state.json'
 ORDER_WAL_FILE = STATE_DIR / 'order_wal.jsonl'
 TRADING_STATE_FILE = STATE_DIR / 'trading_state.json'
@@ -65,6 +68,8 @@ US_HALFDAYS_CONFIG = CONFIG_DIR / 'us_halfdays.json'
 FILLS_STATE_FILE = LOGS_TRADING_DIR / 'fills_state.jsonl'
 RUN_SUMMARIES_FILE = LOGS_AUDIT_DIR / 'run_summaries.jsonl'
 SNAPSHOT_CSV_FILE = LOGS_TRADING_DIR / 'snapshots.csv'
+DAILY_SNAPSHOT_CSV = LOGS_TRADING_DIR / 'daily_snapshot.csv'  # Used by pnl.py
+# Note: Incidents are stored in LOGS_INCIDENTS_DIR with date-based filenames
 
 # Report file paths (LOW PRIORITY)
 # Reports are typically created dynamically, but we provide the base directory
@@ -82,6 +87,8 @@ def ensure_directories() -> None:
         CACHE_DIR,
         LOGS_TRADING_DIR,
         LOGS_AUDIT_DIR,
+        LOGS_DECAY_DIR,
+        LOGS_INCIDENTS_DIR,
         REPORTS_MONTHLY_DIR,
     ]
     for directory in directories:
@@ -131,7 +138,7 @@ def get_incident_file(date_str: Optional[str] = None) -> Path:
     from datetime import datetime
     if date_str is None:
         date_str = datetime.utcnow().date().isoformat()
-    return LOGS_DIR / f"{date_str}_incidents.jsonl"
+    return LOGS_INCIDENTS_DIR / f"{date_str}_incidents.jsonl"
 
 
 def get_replay_file(name: str) -> Path:
@@ -145,6 +152,96 @@ def get_replay_file(name: str) -> Path:
         Absolute Path to the replay file
     """
     return REPLAYS_DIR / name
+
+
+def print_paths() -> None:
+    """
+    Diagnostic function to print all path constants.
+    
+    Useful for debugging path issues and verifying paths are correct.
+    """
+    print("=" * 70)
+    print("RegimeFlex Path Constants")
+    print("=" * 70)
+    
+    print("\n[Root]")
+    print(f"  PROJECT_ROOT: {PROJECT_ROOT}")
+    print(f"  Is absolute: {PROJECT_ROOT.is_absolute()}")
+    print(f"  Exists: {PROJECT_ROOT.exists()}")
+    
+    print("\n[Directories]")
+    directories = {
+        'DATA_DIR': DATA_DIR,
+        'STATE_DIR': STATE_DIR,
+        'CONFIG_DIR': CONFIG_DIR,
+        'LOGS_DIR': LOGS_DIR,
+        'REPORTS_DIR': REPORTS_DIR,
+        'REPLAYS_DIR': REPLAYS_DIR,
+        'CACHE_DIR': CACHE_DIR,
+        'LOGS_TRADING_DIR': LOGS_TRADING_DIR,
+        'LOGS_AUDIT_DIR': LOGS_AUDIT_DIR,
+        'LOGS_DECAY_DIR': LOGS_DECAY_DIR,
+        'LOGS_INCIDENTS_DIR': LOGS_INCIDENTS_DIR,
+        'REPORTS_MONTHLY_DIR': REPORTS_MONTHLY_DIR,
+    }
+    for name, path in directories.items():
+        print(f"  {name}: {path}")
+        print(f"    Absolute: {path.is_absolute()}, Exists: {path.exists()}")
+    
+    print("\n[State Files (HIGH PRIORITY)]")
+    state_files = {
+        'RUN_LOCK_FILE': RUN_LOCK_FILE,
+        'POSITIONS_FILE': POSITIONS_FILE,
+        'KILL_SWITCH_FILE': KILL_SWITCH_FILE,
+        'KILL_SWITCH_FLAG_FILE': KILL_SWITCH_FLAG_FILE,
+        'REGIME_STATE_FILE': REGIME_STATE_FILE,
+        'ORDER_WAL_FILE': ORDER_WAL_FILE,
+        'TRADING_STATE_FILE': TRADING_STATE_FILE,
+    }
+    for name, path in state_files.items():
+        print(f"  {name}: {path}")
+        print(f"    Absolute: {path.is_absolute()}, Exists: {path.exists()}")
+    
+    print("\n[Guardian Files]")
+    print(f"  GUARDIAN_HEARTBEAT_FILE: {GUARDIAN_HEARTBEAT_FILE}")
+    print(f"    Absolute: {GUARDIAN_HEARTBEAT_FILE.is_absolute()}, Exists: {GUARDIAN_HEARTBEAT_FILE.exists()}")
+    
+    print("\n[Config Files (MEDIUM PRIORITY)]")
+    config_files = {
+        'RISK_CONFIG': RISK_CONFIG,
+        'EXPOSURE_CONFIG': EXPOSURE_CONFIG,
+        'SCHEDULE_CONFIG': SCHEDULE_CONFIG,
+        'TELEMETRY_CONFIG': TELEMETRY_CONFIG,
+        'DATA_CONFIG': DATA_CONFIG,
+        'BROKER_CONFIG': BROKER_CONFIG,
+        'METRICS_CONFIG': METRICS_CONFIG,
+        'LOGS_CONFIG': LOGS_CONFIG,
+        'REPORTS_CONFIG': REPORTS_CONFIG,
+        'SAFETY_CONFIG': SAFETY_CONFIG,
+        'US_HOLIDAYS_CONFIG': US_HOLIDAYS_CONFIG,
+        'US_HALFDAYS_CONFIG': US_HALFDAYS_CONFIG,
+    }
+    for name, path in config_files.items():
+        print(f"  {name}: {path}")
+        print(f"    Absolute: {path.is_absolute()}, Exists: {path.exists()}")
+    
+    print("\n[Log Files (LOW PRIORITY)]")
+    log_files = {
+        'FILLS_STATE_FILE': FILLS_STATE_FILE,
+        'RUN_SUMMARIES_FILE': RUN_SUMMARIES_FILE,
+        'SNAPSHOT_CSV_FILE': SNAPSHOT_CSV_FILE,
+        'DAILY_SNAPSHOT_CSV': DAILY_SNAPSHOT_CSV,
+    }
+    for name, path in log_files.items():
+        print(f"  {name}: {path}")
+        print(f"    Absolute: {path.is_absolute()}, Exists: {path.exists()}")
+    
+    print("\n" + "=" * 70)
+
+
+# Allow running as script: python -m regimeflex.config.paths
+if __name__ == '__main__':
+    print_paths()
 
 
 # Export commonly used paths for convenience
@@ -166,6 +263,7 @@ __all__ = [
     'RUN_LOCK_FILE',
     'POSITIONS_FILE',
     'KILL_SWITCH_FILE',
+    'KILL_SWITCH_FLAG_FILE',
     'REGIME_STATE_FILE',
     'ORDER_WAL_FILE',
     'TRADING_STATE_FILE',
@@ -191,6 +289,9 @@ __all__ = [
     'FILLS_STATE_FILE',
     'RUN_SUMMARIES_FILE',
     'SNAPSHOT_CSV_FILE',
+    'DAILY_SNAPSHOT_CSV',
+    'LOGS_DECAY_DIR',
+    'LOGS_INCIDENTS_DIR',
     
     # Helper functions
     'get_log_file',
@@ -198,5 +299,6 @@ __all__ = [
     'get_incident_file',
     'get_replay_file',
     'ensure_directories',
+    'print_paths',
 ]
 

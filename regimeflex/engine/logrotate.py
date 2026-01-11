@@ -65,7 +65,8 @@ def rotate_once(dirpath: Path, patterns: list[str], retention_days: int) -> dict
     return {"archived": archived, "removed": removed}
 
 def rotate_all() -> dict:
-    cfg = Config(".")._load_yaml("config/logs.yaml") if (Config(".").root / "config/logs.yaml").exists() else {}
+    from regimeflex.config.paths import PROJECT_ROOT
+    cfg = Config(PROJECT_ROOT)._load_yaml("config/logs.yaml") if (Config(PROJECT_ROOT).root / "config/logs.yaml").exists() else {}
     paths = [Path(p) for p in (cfg.get("paths") or [])]
     patterns = list(cfg.get("patterns") or ["*.jsonl", "*.log"])
     retention = int(cfg.get("retention_days", 30))

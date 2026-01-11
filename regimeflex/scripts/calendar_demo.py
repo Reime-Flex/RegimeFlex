@@ -7,10 +7,11 @@ sys.path.append(str(Path(__file__).parent.parent))
 from engine.identity import RegimeFlexIdentity as RF
 from engine.config import Config
 from engine.calendar import is_fomc_blackout, is_opex
+from regimeflex.config.paths import PROJECT_ROOT
 
 if __name__ == "__main__":
     today = date.today()
-    cfg = Config(".")
+    cfg = Config(PROJECT_ROOT)
     sched = cfg.schedule or {}
 
     fomc_dates = sched.get("fomc_dates", [])

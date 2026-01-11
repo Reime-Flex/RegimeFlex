@@ -48,8 +48,9 @@ def main():
     if command == "run":
         from regimeflex.engine.runner import run_daily_offline
         from regimeflex.engine.config import Config
+        from regimeflex.config.paths import PROJECT_ROOT
         
-        cfg = Config(".")
+        cfg = Config(PROJECT_ROOT)
         run = cfg.run or {}
         result = run_daily_offline(
             equity=float(run.get("equity", 25000)),

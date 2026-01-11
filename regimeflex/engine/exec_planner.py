@@ -132,7 +132,8 @@ def plan_orders(
     side = "BUY" if delta > 0 else "SELL"
     
     # Sanitize quantity against broker constraints
-    broker_cfg = Config(".")._load_yaml("config/broker.yaml") if (Config(".").root / "config/broker.yaml").exists() else {}
+    from regimeflex.config.paths import PROJECT_ROOT
+    broker_cfg = Config(PROJECT_ROOT)._load_yaml("config/broker.yaml") if (Config(PROJECT_ROOT).root / "config/broker.yaml").exists() else {}
     cons = load_constraints(broker_cfg)
     raw_qty = abs(delta)
     adj_qty, size_note = sanitize_desired_qty(raw_qty, current_price, cons)

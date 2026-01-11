@@ -40,6 +40,7 @@ from regimeflex.engine.config import Config
 from regimeflex.engine.health import run_health
 from regimeflex.scripts.path_utils import detect_project_root, find_replay_directory, find_incidents_file
 from regimeflex.scripts.replay_utils import load_latest_replay_from_dir
+from regimeflex.config.paths import PROJECT_ROOT
 
 app = Flask(__name__)
 
@@ -66,7 +67,7 @@ def trigger_daily():
     if is_killed():
         RF.print_log("KILL-SWITCH active — refusing HTTP trigger", "RISK")
         return jsonify({"status": "killed"}), 423  # 423 = Locked
-    cfg = Config(".")
+    cfg = Config(PROJECT_ROOT)
     run = cfg.run or {}
     result = run_daily_offline(
         equity=float(run.get("equity", 25000)),

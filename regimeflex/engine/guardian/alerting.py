@@ -57,8 +57,12 @@ class AlertManager:
     - EMERGENCY: critical failures requiring immediate action
     """
     
-    def __init__(self, root: Path | str = "."):
-        self.root = Path(root) if isinstance(root, str) else root
+    def __init__(self, root: Path | str = None):
+        from regimeflex.config.paths import PROJECT_ROOT
+        if root is None:
+            self.root = PROJECT_ROOT
+        else:
+            self.root = Path(root) if isinstance(root, str) else root
         self._config = self._load_config()
         self._telegram_bot = self._init_telegram()
         self._start_time = datetime.now(timezone.utc)
@@ -433,9 +437,10 @@ class AlertManager:
 _default_manager: Optional[AlertManager] = None
 
 
-def get_alert_manager(root: Path | str = ".") -> AlertManager:
+def get_alert_manager(root: Path | str = None) -> AlertManager:
     """Get or create the default AlertManager instance."""
+    from regimeflex.config.paths import PROJECT_ROOT
     global _default_manager
     if _default_manager is None:
-        _default_manager = AlertManager(root)
+        _default_manager = AlertManager(root if root is not None else PROJECT_ROOT)
     return _default_manager

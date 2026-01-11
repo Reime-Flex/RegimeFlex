@@ -58,7 +58,8 @@ def check_system_health() -> Dict[str, Any]:
         RF.print_log("psutil not available, skipping system resource checks", "INFO")
     
     # API health checks
-    data_cfg = Config(".")._load_yaml("config/data.yaml") if (Config(".").root / "config/data.yaml").exists() else {}
+    from regimeflex.config.paths import PROJECT_ROOT
+    data_cfg = Config(PROJECT_ROOT)._load_yaml("config/data.yaml") if (Config(PROJECT_ROOT).root / "config/data.yaml").exists() else {}
     
     # Check Polygon API
     polygon_healthy = False

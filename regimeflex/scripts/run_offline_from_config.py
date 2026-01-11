@@ -13,9 +13,10 @@ from engine.retention import prune_reports
 from engine.checksum import checksum_new_artifacts
 from engine.env import load_env
 from engine.telemetry import Notifier, TGCreds
+from regimeflex.config.paths import PROJECT_ROOT
 
 if __name__ == "__main__":
-    cfg = Config(".")
+    cfg = Config(PROJECT_ROOT)
     run = cfg.run or {}
     tele = cfg.telemetry or {}
 

@@ -3,9 +3,10 @@ from __future__ import annotations
 from typing import Tuple, Dict
 from regimeflex.engine.config import Config
 from regimeflex.engine.identity import RegimeFlexIdentity as RF
+from regimeflex.config.paths import PROJECT_ROOT
 
 def resolve_execution_pair() -> Dict[str, str]:
-    ex = Config(".")._load_yaml("config/execution.yaml")
+    ex = Config(PROJECT_ROOT)._load_yaml("config/execution.yaml")
     pair = (ex.get("pair") or "QQQ_PSQ").upper()
     mp = (ex.get("mapping") or {}).get(pair, {})
     long_symbol  = mp.get("long_symbol", "QQQ")

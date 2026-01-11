@@ -31,7 +31,8 @@ if __name__ == "__main__":
     RF.print_log(f"Result summary: dir={result['target']['direction']} symbol={result['target']['symbol']}", "SUCCESS")
 
     # Send summary (dry-run if no creds)
-    cfg = Config(".")
+    from regimeflex.config.paths import PROJECT_ROOT
+    cfg = Config(PROJECT_ROOT)
     tele = cfg.telemetry or {}
     if tele.get("enabled", True):
         e = load_env()

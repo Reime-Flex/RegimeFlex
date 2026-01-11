@@ -2,9 +2,10 @@
 from __future__ import annotations
 from typing import Dict
 from regimeflex.engine.config import Config
+from regimeflex.config.paths import PROJECT_ROOT
 
 def collect_config_echo() -> Dict[str, str | float | int | bool]:
-    C = Config(".")
+    C = Config(PROJECT_ROOT)
     # execution
     ex = C._load_yaml("config/execution.yaml")
     pair = (ex.get("pair") or "QQQ_PSQ").upper()

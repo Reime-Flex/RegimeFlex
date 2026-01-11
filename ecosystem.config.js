@@ -1,74 +1,138 @@
 /**
- * PM2 Ecosystem Configuration for RegimeFlex
+ * PM2 Ecosystem Configuration for RegimeFlex Trading System
  * 
- * Production-ready configuration with:
- * - Absolute paths (PM2-safe)
- * - Single process mode (never cluster for trading!)
+ * ==========================================
+ * PRODUCTION DEPLOYMENT CONFIGURATION
+ * ==========================================
+ * 
+ * This configuration ensures RegimeFlex runs correctly in production
+ * environments where PM2 may change the working directory.
+ * 
+ * Key Features:
+ * - Absolute paths (works from any directory)
+ * - Single process mode (CRITICAL for trading)
  * - Virtual environment Python interpreter
  * - Comprehensive logging
- * - Graceful shutdown
+ * - Graceful shutdown handling
  * - Environment variable management
  * 
  * Usage:
+ *   # Start all processes
  *   pm2 start ecosystem.config.js
+ *   
+ *   # Start specific process
+ *   pm2 start ecosystem.config.js --only regimeflex-trading
+ *   
+ *   # View logs
  *   pm2 logs regimeflex-trading
+ *   pm2 logs regimeflex-watchdog
+ *   pm2 logs regimeflex-http
+ *   
+ *   # Check status
  *   pm2 status
+ *   
+ *   # Stop/restart
  *   pm2 stop regimeflex-trading
+ *   pm2 restart regimeflex-trading
  *   pm2 delete regimeflex-trading
+ * 
+ * Environment Variables:
+ *   REGIMEFLEX_ROOT - Project root directory (defaults to /home/user/RegimeFlex)
+ *   PORT - HTTP server port (defaults to 5000)
  */
 module.exports = {
     apps: [
-        // Main RegimeFlex trading bot
+        // ==========================================
+        // Main RegimeFlex Trading Bot
+        // ==========================================
         {
             name: 'regimeflex-trading',
+            
+            // ==========================================
+            // Execution Configuration
+            // ==========================================
+            // Use 'python' command (PM2 will find it in PATH)
+            // For virtual environment, set interpreter to venv path
             script: 'python',
             args: ['-m', 'regimeflex', 'run'],
             
-            // Use absolute path or environment variable
+            // Working directory (CRITICAL for absolute paths)
+            // Set REGIMEFLEX_ROOT env var or use default path
+            // With Phase 2 path absolutization, this can be any directory,
+            // but setting it to project root is still recommended
             cwd: process.env.REGIMEFLEX_ROOT || '/home/user/RegimeFlex',
             
-            // Use Python from virtual environment
-            interpreter: '.venv/bin/python',
+            // Python interpreter
+            // Option 1: Use 'none' and let system PATH find python
+            // Option 2: Use full path to venv python (recommended for production)
+            // Option 3: Use 'python3' if python3 is in PATH
+            interpreter: process.env.PYTHON_INTERPRETER || '.venv/bin/python',
             interpreter_args: '',
             
-            // Single instance (never cluster for trading!)
+            // ==========================================
+            // CRITICAL: Single Instance Only
+            // ==========================================
+            // ⚠️  WARNING: Trading systems MUST NEVER run concurrently!
+            // Multiple instances = duplicate orders = financial disaster
+            // NEVER set instances > 1 for trading systems
             instances: 1,
-            exec_mode: 'fork',
+            exec_mode: 'fork',  // NOT 'cluster' - fork mode for single process
             
-            // Restart behavior
-            autorestart: true,
-            max_restarts: 10,              // Limit restarts to prevent infinite loops
-            min_uptime: 60000,            // 60 seconds - consider stable after this
-            restart_delay: 5000,          // 5 seconds between restarts
-            exp_backoff_restart_delay: 100,  // Exponential backoff base (ms)
-            max_memory_restart: '1G',     // Restart if memory exceeds 1GB
+            // ==========================================
+            // Restart Behavior
+            // ==========================================
+            autorestart: true,              // Restart on crash
+            max_restarts: 10,               // Stop restarting after 10 crashes (prevents infinite loops)
+            min_uptime: 60000,              // Must stay up 60s to count as stable restart
+            restart_delay: 5000,            // Wait 5 seconds between restart attempts
+            exp_backoff_restart_delay: 100, // Exponential backoff base (ms)
+            max_memory_restart: '1G',       // Restart if memory exceeds 1GB (safety limit)
             
-            // Logging (absolute paths)
+            // ==========================================
+            // Logging Configuration
+            // ==========================================
+            // Logs are relative to cwd (which is project root)
+            // With absolute paths (Phase 2), these will work correctly
             error_file: './logs/pm2-error.log',
             out_file: './logs/pm2-out.log',
             log_date_format: 'YYYY-MM-DD HH:mm:ss Z',
-            merge_logs: true,
-            log_type: 'json',             // JSON logs for easier parsing
+            merge_logs: true,               // Combine logs from restarts
+            log_type: 'json',               // JSON logs for easier parsing (optional)
             
-            // Environment variables
+            // ==========================================
+            // Environment Variables
+            // ==========================================
             env: {
+                // Python path (for imports)
                 PYTHONPATH: process.env.REGIMEFLEX_ROOT || '/home/user/RegimeFlex',
+                
+                // Environment type
                 ENV: 'prod',
                 NODE_ENV: 'production',
-                PYTHONUNBUFFERED: '1',     // Unbuffered output for real-time logs
-                REGIMEFLEX_DRY_RUN: '0'    // Live trading mode
+                
+                // Python output (unbuffered for real-time logs)
+                PYTHONUNBUFFERED: '1',
+                
+                // Trading mode (0 = live, 1 = paper/dry-run)
+                REGIMEFLEX_DRY_RUN: '0'
             },
             
-            // Paper trading environment
+            // ==========================================
+            // Paper Trading Environment
+            // ==========================================
+            // Use: pm2 start ecosystem.config.js --env env_paper
             env_paper: {
                 PYTHONPATH: process.env.REGIMEFLEX_ROOT || '/home/user/RegimeFlex',
                 ENV: 'dev',
                 NODE_ENV: 'development',
                 PYTHONUNBUFFERED: '1',
-                REGIMEFLEX_DRY_RUN: '1'    // Paper trading mode
+                REGIMEFLEX_DRY_RUN: '1'     // Paper trading mode
             },
             
-            // Development environment
+            // ==========================================
+            // Development Environment
+            // ==========================================
+            // Use: pm2 start ecosystem.config.js --env env_development
             env_development: {
                 PYTHONPATH: process.env.REGIMEFLEX_ROOT || '/home/user/RegimeFlex',
                 ENV: 'dev',
@@ -77,37 +141,49 @@ module.exports = {
                 REGIMEFLEX_DRY_RUN: '1'
             },
             
-            // Watch disabled (not needed for scheduled runs)
+            // ==========================================
+            // Watch Mode (Disabled for Production)
+            // ==========================================
+            // Watch mode is disabled for production
+            // Trading systems should run on schedule, not file changes
             watch: false,
             
-            // Graceful shutdown
-            kill_timeout: 10000,          // 10 seconds for graceful shutdown
-            wait_ready: false,            // Don't wait for ready signal
-            listen_timeout: 3000,         // 3 seconds timeout for listen
+            // ==========================================
+            // Graceful Shutdown
+            // ==========================================
+            kill_timeout: 10000,            // 10 seconds for cleanup on stop
+            wait_ready: false,              // Don't wait for ready signal
+            listen_timeout: 3000,           // 3 second timeout for listen
             
-            // Instance vars (shared across restarts)
+            // ==========================================
+            // Instance Variables (Shared Across Restarts)
+            // ==========================================
             instance_var: {
                 'REGIMEFLEX_STARTED_AT': new Date().toISOString()
             }
         },
         
-        // Guardian Watchdog process
+        // ==========================================
+        // Guardian Watchdog Process
+        // ==========================================
+        // Monitors the trading bot and triggers recovery if stale
         {
             name: 'regimeflex-watchdog',
             script: 'python',
             args: ['-m', 'regimeflex.scripts.watchdog_monitor'],
             
             cwd: process.env.REGIMEFLEX_ROOT || '/home/user/RegimeFlex',
-            interpreter: '.venv/bin/python',
+            interpreter: process.env.PYTHON_INTERPRETER || '.venv/bin/python',
             
+            // Single instance
             instances: 1,
             exec_mode: 'fork',
             
             // Watchdog should always be running
             autorestart: true,
-            max_restarts: -1,             // Unlimited restarts for watchdog
-            min_uptime: 5000,             // 5 seconds
-            restart_delay: 10000,         // 10 second delay
+            max_restarts: -1,               // Unlimited restarts for watchdog (critical service)
+            min_uptime: 5000,               // 5 seconds minimum uptime
+            restart_delay: 10000,           // 10 second delay between restarts
             
             // Logging
             error_file: './logs/pm2-watchdog-error.log',
@@ -127,21 +203,26 @@ module.exports = {
             kill_timeout: 5000
         },
         
+        // ==========================================
         // HTTP Trigger Server (for Railway/cron)
+        // ==========================================
+        // Provides HTTP endpoints for triggering trading cycles
+        // Used by Railway, cron jobs, or external schedulers
         {
             name: 'regimeflex-http',
             script: 'python',
             args: ['-m', 'regimeflex', 'http'],
             
             cwd: process.env.REGIMEFLEX_ROOT || '/home/user/RegimeFlex',
-            interpreter: '.venv/bin/python',
+            interpreter: process.env.PYTHON_INTERPRETER || '.venv/bin/python',
             
+            // Single instance
             instances: 1,
             exec_mode: 'fork',
             
             autorestart: true,
             max_restarts: 10,
-            min_uptime: 30000,            // 30 seconds
+            min_uptime: 30000,              // 30 seconds minimum uptime
             restart_delay: 5000,
             
             // Logging
@@ -156,7 +237,7 @@ module.exports = {
                 ENV: 'prod',
                 NODE_ENV: 'production',
                 PYTHONUNBUFFERED: '1',
-                PORT: process.env.PORT || '5000'
+                PORT: process.env.PORT || '5000'  // HTTP server port
             },
             
             watch: false,

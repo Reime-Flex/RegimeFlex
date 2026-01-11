@@ -5,11 +5,12 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 from engine.identity import RegimeFlexIdentity as RF
 from engine.config import Config
+from regimeflex.config.paths import PROJECT_ROOT
 import pprint
 
 if __name__ == "__main__":
     RF.print_log("Loading RegimeFlex configuration…", "INFO")
-    cfg = Config(".")
+    cfg = Config(PROJECT_ROOT)
     RF.print_log("Strategies:", "INFO")
     pprint.pprint(cfg.strategies)
     RF.print_log("Risk:", "INFO")

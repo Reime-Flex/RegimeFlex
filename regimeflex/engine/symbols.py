@@ -4,6 +4,7 @@ from typing import Tuple
 from regimeflex.engine.config import Config
 from regimeflex.engine.identity import RegimeFlexIdentity as RF
 from regimeflex.engine.data import load_from_cache
+from regimeflex.config.paths import PROJECT_ROOT
 
 def resolve_signal_underlier() -> Tuple[str, object]:
     """
@@ -11,7 +12,7 @@ def resolve_signal_underlier() -> Tuple[str, object]:
     - If config asks for NDX but it's not in cache, falls back to QQQ and logs.
     - We only read from cache here; live fetching remains your fetch script's job.
     """
-    cfg = Config(".")._load_yaml("config/exposure.yaml")
+    cfg = Config(PROJECT_ROOT)._load_yaml("config/exposure.yaml")
     sig = (cfg.get("signal") or {})
     underlier = str(sig.get("underlier", "QQQ")).upper()
     ndx_symbol = sig.get("ndx_symbol", "^NDX")

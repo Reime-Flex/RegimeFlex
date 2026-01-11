@@ -8,8 +8,10 @@ from datetime import datetime, timezone
 from regimeflex.engine.identity import RegimeFlexIdentity as RF
 from regimeflex.engine.config import Config
 from regimeflex.engine.symnorm import map_keys_upper, sym_upper
+from regimeflex.config.paths import FILLS_STATE_FILE
 
-FILLS_FILE = Path("logs/trading/fills_state.jsonl")
+# Use absolute path from paths module
+FILLS_FILE = FILLS_STATE_FILE
 
 def _read_fills() -> List[dict]:
     if not FILLS_FILE.exists():

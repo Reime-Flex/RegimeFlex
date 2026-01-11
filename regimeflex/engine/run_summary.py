@@ -2,9 +2,12 @@
 from __future__ import annotations
 from pathlib import Path
 import json
+import fcntl
 from typing import Dict, Any
+from regimeflex.config.paths import RUN_SUMMARIES_FILE
 
-RUN_SUM_FILE = Path("logs/audit/run_summaries.jsonl")
+# Use absolute path from paths module
+RUN_SUM_FILE = RUN_SUMMARIES_FILE
 
 def append_run_summary(result: Dict[str, Any]) -> str:
     bc = (result.get("breadcrumbs") or {})
@@ -37,5 +40,14 @@ def append_run_summary(result: Dict[str, Any]) -> str:
 
     RUN_SUM_FILE.parent.mkdir(parents=True, exist_ok=True)
     with RUN_SUM_FILE.open("a", encoding="utf-8") as f:
-        f.write(json.dumps(doc) + "\n")
+        if hasattr(fcntl, 'LOCK_EX'):
+            # Unix/Linux - use fcntl for file locking
+            fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+            try:
+                f.write(json.dumps(doc) + "\n")
+            finally:
+                fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+        else:
+            # Windows fallback - no fcntl, just write
+            f.write(json.dumps(doc) + "\n")
     return str(RUN_SUM_FILE)

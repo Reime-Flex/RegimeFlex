@@ -7,9 +7,10 @@ sys.path.append(str(Path(__file__).parent.parent))
 from engine.identity import RegimeFlexIdentity as RF
 from engine.config import Config
 from engine.data import get_daily_bars_with_provider
+from regimeflex.config.paths import PROJECT_ROOT
 
 if __name__ == "__main__":
-    cfg = Config(".")._load_yaml("config/data.yaml")
+    cfg = Config(PROJECT_ROOT)._load_yaml("config/data.yaml")
     symbols = cfg.get("symbols", ["QQQ","PSQ"])
     RF.print_log(f"Provider: {cfg.get('provider','cache')} | Symbols: {symbols}", "INFO")
     ok = 0

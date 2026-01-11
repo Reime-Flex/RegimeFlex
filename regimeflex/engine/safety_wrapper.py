@@ -10,8 +10,6 @@ Provides three layers of protection:
 from __future__ import annotations
 
 import json
-import os
-import fcntl
 from dataclasses import dataclass, field, asdict
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -20,6 +18,8 @@ from contextlib import contextmanager
 
 from regimeflex.engine.identity import RegimeFlexIdentity as RF
 from regimeflex.engine.config import Config
+from regimeflex.config.paths import TRADING_STATE_FILE, PROJECT_ROOT
+from regimeflex.utils.atomic_file import atomic_write_json, atomic_read_json
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -65,14 +65,17 @@ class SafetyConfig:
     
     # Duplicate prevention
     duplicate_prevention_enabled: bool = True
-    state_file: str = "data/trading_state.json"
+    state_file: str = str(TRADING_STATE_FILE)  # Use absolute path from paths module
     lock_timeout_seconds: int = 300  # 5 minutes
     check_on_startup: bool = True
 
 
-def load_safety_config(root: str | Path = ".") -> SafetyConfig:
+def load_safety_config(root: str | Path = None) -> SafetyConfig:
     """Load safety configuration from config/safety.yaml."""
-    root_path = Path(root)
+    if root is None:
+        root_path = PROJECT_ROOT
+    else:
+        root_path = Path(root)
     config_path = root_path / "config" / "safety.yaml"
     
     cfg = SafetyConfig()
@@ -97,11 +100,9 @@ def load_safety_config(root: str | Path = ".") -> SafetyConfig:
             dup = raw.get("duplicate_prevention", {}) or {}
             cfg.duplicate_prevention_enabled = bool(dup.get("enabled", True))
             # Use absolute path from paths module as default
-            from regimeflex.config.paths import TRADING_STATE_FILE
             state_file_config = dup.get("state_file")
             if state_file_config:
                 # If config specifies relative path, make it absolute relative to project root
-                from regimeflex.config.paths import PROJECT_ROOT
                 cfg.state_file = str(PROJECT_ROOT / state_file_config) if not Path(state_file_config).is_absolute() else str(state_file_config)
             else:
                 cfg.state_file = str(TRADING_STATE_FILE)
@@ -115,8 +116,8 @@ def load_safety_config(root: str | Path = ".") -> SafetyConfig:
 
 
 def get_safety_config() -> SafetyConfig:
-    """Convenience function to get safety config from current directory."""
-    return load_safety_config(".")
+    """Convenience function to get safety config from project root."""
+    return load_safety_config(PROJECT_ROOT)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -357,32 +358,36 @@ class TradingStateLock:
     Uses file locking to ensure atomic operations in multi-process scenarios.
     """
     
-    def __init__(self, state_file: str | Path = "data/trading_state.json"):
+    def __init__(self, state_file: str | Path = None):
+        # Use TRADING_STATE_FILE as default if not provided
+        if state_file is None:
+            state_file = TRADING_STATE_FILE
+        # Convert relative paths to absolute relative to PROJECT_ROOT
         self.state_file = Path(state_file)
+        if not self.state_file.is_absolute():
+            self.state_file = PROJECT_ROOT / self.state_file
         self.state_file.parent.mkdir(parents=True, exist_ok=True)
     
     def _now_iso(self) -> str:
         return datetime.now(timezone.utc).isoformat()
     
     def _load_state(self) -> TradingState:
-        """Load current state from file with file locking for thread safety."""
-        if not self.state_file.exists():
+        """Load current state from file with atomic read and file locking."""
+        default_data = {
+            "version": 1,
+            "last_updated": self._now_iso(),
+            "active_orders": [],
+            "completed_orders": [],
+            "failed_orders": []
+        }
+        
+        # Use atomic_read_json for safe reading with file locking
+        data = atomic_read_json(self.state_file, default=default_data)
+        
+        if data is None:
             return TradingState(last_updated=self._now_iso())
         
         try:
-            # Use file locking for atomic reads (Unix/Linux)
-            if hasattr(fcntl, 'LOCK_SH'):
-                with open(self.state_file, "r") as f:
-                    try:
-                        fcntl.flock(f.fileno(), fcntl.LOCK_SH)  # Shared lock for read
-                        data = json.load(f)
-                    finally:
-                        fcntl.flock(f.fileno(), fcntl.LOCK_UN)  # Release lock
-            else:
-                # Windows fallback - no fcntl, use regular read
-                with open(self.state_file, "r") as f:
-                    data = json.load(f)
-            
             return TradingState(
                 version=data.get("version", 1),
                 last_updated=data.get("last_updated", ""),
@@ -390,48 +395,20 @@ class TradingStateLock:
                 completed_orders=data.get("completed_orders", []),
                 failed_orders=data.get("failed_orders", [])
             )
-        except (json.JSONDecodeError, KeyError) as e:
-            RF.print_log(f"Error loading trading state, starting fresh: {e}", "RISK")
-            return TradingState(last_updated=self._now_iso())
-        except Exception as e:
-            RF.print_log(f"Unexpected error loading trading state: {e}", "ERROR")
+        except (KeyError, TypeError) as e:
+            RF.print_log(f"Error parsing trading state, starting fresh: {e}", "RISK")
             return TradingState(last_updated=self._now_iso())
     
     def _save_state(self, state: TradingState) -> None:
         """Save state to file with atomic write and file locking."""
         state.last_updated = self._now_iso()
         
-        # Write to temp file first, then rename (atomic on most filesystems)
-        temp_file = self.state_file.with_suffix(".tmp")
+        # Use atomic_write_json for safe writing with temp file + rename + file locking
+        success = atomic_write_json(self.state_file, asdict(state), indent=2)
         
-        try:
-            with open(temp_file, "w") as f:
-                # Use exclusive lock for writes (Unix/Linux)
-                if hasattr(fcntl, 'LOCK_EX'):
-                    try:
-                        fcntl.flock(f.fileno(), fcntl.LOCK_EX)  # Exclusive lock for write
-                        json.dump(asdict(state), f, indent=2)
-                        f.flush()
-                        os.fsync(f.fileno())  # Force write to disk
-                    finally:
-                        fcntl.flock(f.fileno(), fcntl.LOCK_UN)  # Release lock
-                else:
-                    # Windows fallback
-                    json.dump(asdict(state), f, indent=2)
-                    f.flush()
-            
-            # Atomic rename (works on Unix/Linux, Windows may need special handling)
-            if os.name == 'nt':  # Windows
-                # On Windows, rename may fail if file exists, so delete first
-                if self.state_file.exists():
-                    self.state_file.unlink()
-            temp_file.rename(self.state_file)
-        except Exception as e:
-            RF.print_log(f"Failed to save trading state: {e}", "ERROR")
-            # Clean up temp file on error
-            if temp_file.exists():
-                temp_file.unlink()
-            raise
+        if not success:
+            RF.print_log(f"Failed to save trading state to {self.state_file}", "ERROR")
+            raise RuntimeError(f"Failed to save trading state to {self.state_file}")
     
     def generate_order_key(self, symbol: str, side: str, qty: float) -> str:
         """Generate unique key for an order."""

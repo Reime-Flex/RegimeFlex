@@ -4,6 +4,7 @@ import pandas as pd
 import numpy as np
 from regimeflex.engine.config import Config
 from regimeflex.engine.identity import RegimeFlexIdentity as RF
+from regimeflex.config.paths import PROJECT_ROOT
 
 def compute_sma(df: pd.DataFrame, n: int) -> pd.Series:
     return df["close"].rolling(n).mean()
@@ -33,7 +34,7 @@ def exposure_allocator(df: pd.DataFrame) -> dict:
     trend (fast vs slow), extension, Bollinger momentum (with confirmation),
     and a realized-volatility dampener.
     """
-    cfg = Config(".")._load_yaml("config/exposure.yaml")
+    cfg = Config(PROJECT_ROOT)._load_yaml("config/exposure.yaml")
     fast, slow = cfg["trend"]["fast_ma"], cfg["trend"]["slow_ma"]
     ext_factor = cfg["weights"]["extension_factor"]
     bb_p, bb_std = cfg["weights"]["bb_period"], cfg["weights"]["bb_std"]

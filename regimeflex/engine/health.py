@@ -40,7 +40,8 @@ def _bool_to_status(ok: bool, warn: bool = False) -> str:
 
 def run_health() -> HealthReport:
     checks: List[CheckResult] = []
-    cfg = Config(".")
+    from regimeflex.config.paths import PROJECT_ROOT
+    cfg = Config(PROJECT_ROOT)
     now = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
 
     # 1) Kill-switch

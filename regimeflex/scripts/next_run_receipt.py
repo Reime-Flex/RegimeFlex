@@ -46,12 +46,9 @@ def is_market_day(day: str, md_cfg: Dict[str, Any]) -> bool:
 
 def build_next_run_payload() -> Dict[str, Any]:
     """Build next run preview payload as JSON-serializable dict."""
-    # Detect if we're at project root or regimeflex directory
-    cwd = Path(".")
-    if (cwd / "regimeflex" / "config").exists():
-        root = cwd / "regimeflex"
-    else:
-        root = cwd
+    # Use absolute path from paths module
+    from regimeflex.config.paths import PROJECT_ROOT
+    root = PROJECT_ROOT
     
     cfg = Config(root)
     schedule_cfg = cfg._load_yaml("config/schedule.yaml") if (cfg.root / "config/schedule.yaml").exists() else {}

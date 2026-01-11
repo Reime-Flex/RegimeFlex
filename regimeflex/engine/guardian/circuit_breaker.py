@@ -87,7 +87,7 @@ class CircuitBreaker:
         retry_delays: Optional[List[float]] = None,
         reset_timeout_sec: float = 300.0,
         emergency_on_open: bool = True,
-        root: Path | str = "."
+        root: Path | str = None
     ):
         self.service_name = service_name
         self.config = CircuitBreakerConfig(
@@ -98,7 +98,11 @@ class CircuitBreaker:
         )
         self._state = CircuitBreakerState()
         self._lock = Lock()
-        self._root = Path(root) if isinstance(root, str) else root
+        from regimeflex.config.paths import PROJECT_ROOT
+        if root is None:
+            self._root = PROJECT_ROOT
+        else:
+            self._root = Path(root) if isinstance(root, str) else root
         self._alert_manager = None  # Lazy load to avoid circular import
         
         # Load service-specific config if available
@@ -302,17 +306,19 @@ class CircuitBreaker:
 
 
 # Pre-configured breakers for common services
-def get_alpaca_breaker(root: Path | str = ".") -> CircuitBreaker:
+def get_alpaca_breaker(root: Path | str = None) -> CircuitBreaker:
     """Get or create the Alpaca API circuit breaker."""
+    from regimeflex.config.paths import PROJECT_ROOT
     existing = CircuitBreaker.get_breaker("alpaca")
     if existing:
         return existing
-    return CircuitBreaker("alpaca", root=root)
+    return CircuitBreaker("alpaca", root=root if root is not None else PROJECT_ROOT)
 
 
-def get_polygon_breaker(root: Path | str = ".") -> CircuitBreaker:
+def get_polygon_breaker(root: Path | str = None) -> CircuitBreaker:
     """Get or create the Polygon API circuit breaker."""
     existing = CircuitBreaker.get_breaker("polygon")
     if existing:
         return existing
-    return CircuitBreaker("polygon", max_failures=5, root=root)
+    from regimeflex.config.paths import PROJECT_ROOT
+    return CircuitBreaker("polygon", max_failures=5, root=root if root is not None else PROJECT_ROOT)

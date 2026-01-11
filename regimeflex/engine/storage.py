@@ -4,10 +4,12 @@ from pathlib import Path
 from datetime import datetime, timezone
 import hashlib
 import json
+import fcntl
 from typing import Any, Dict
 
-LEDGER_DIR = Path("logs/audit")
-LEDGER_DIR.mkdir(parents=True, exist_ok=True)
+from regimeflex.config.paths import LOGS_AUDIT_DIR
+# LOGS_AUDIT_DIR is already created by paths module on import
+LEDGER_DIR = LOGS_AUDIT_DIR
 
 def ens_timestamp() -> str:
     """RFC3339 with Zulu (e.g., 2025-10-18T14:03:22Z)."""
@@ -44,7 +46,16 @@ class ENSStyleAudit:
         payload = {"kind": kind, "block": blk, "timestamp": ts, "data": data}
         h = short_hash(payload)
         rec = AuditRecord(tx_hash=h, timestamp=ts, block=blk, kind=kind, data=data)
-        # append JSONL
+        # append JSONL with file locking
         with self._ledger_path(blk).open("a", encoding="utf-8") as f:
-            f.write(json.dumps(asdict(rec), ensure_ascii=False) + "\n")
+            if hasattr(fcntl, 'LOCK_EX'):
+                # Unix/Linux - use fcntl for file locking
+                fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+                try:
+                    f.write(json.dumps(asdict(rec), ensure_ascii=False) + "\n")
+                finally:
+                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+            else:
+                # Windows fallback - no fcntl, just write
+                f.write(json.dumps(asdict(rec), ensure_ascii=False) + "\n")
         return rec

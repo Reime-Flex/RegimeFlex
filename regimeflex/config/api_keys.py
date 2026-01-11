@@ -144,9 +144,11 @@ class APIKeys:
         return os.getenv('TELEGRAM_CHAT_ID') or ''
     
     @staticmethod
-    def setup_alpaca_env() -> None:
+    def setup_alpaca_env(verbose: bool = False) -> None:
         """
         Ensure Alpaca SDK environment variables are set.
+        
+        Call this before initializing Alpaca API clients to ensure SDK can find credentials.
         
         This method sets the official Alpaca SDK environment variable names
         (APCA_API_KEY_ID, APCA_API_SECRET_KEY, APCA_API_BASE_URL) if they
@@ -154,6 +156,9 @@ class APIKeys:
         
         This ensures compatibility with the Alpaca SDK which expects these
         specific environment variable names.
+        
+        Args:
+            verbose: If True, prints a message indicating SDK environment variables are set
         
         Note: Only sets variables if they are not already present, to avoid
         overriding existing values.
@@ -175,6 +180,9 @@ class APIKeys:
             base_url = APIKeys.alpaca_base_url()
             if base_url:
                 os.environ['APCA_API_BASE_URL'] = base_url
+        
+        if verbose:
+            print("✓ Alpaca SDK environment variables are set (APCA_API_KEY_ID, APCA_API_SECRET_KEY, APCA_API_BASE_URL)")
     
     @staticmethod
     def has_alpaca_credentials() -> bool:

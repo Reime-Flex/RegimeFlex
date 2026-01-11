@@ -3,35 +3,32 @@ RegimeFlex Trading System
 
 A systematic trading system with regime detection, risk management,
 and real broker integration.
+
+Environment variables are automatically loaded from .env on package import.
 """
 
-# Load environment FIRST before any other imports
-# This ensures .env is loaded before any module accesses environment variables
+# CRITICAL: Load environment variables FIRST before any other imports
 from regimeflex.config.env_loader import load_environment, validate_required_keys
 
-# Load .env file automatically on package import
-# This runs whenever someone imports regimeflex
+# Load .env file (searches multiple locations)
 if not load_environment(verbose=True):
-    import warnings
-    warnings.warn(
-        "Failed to load .env file. RegimeFlex will use system environment variables only. "
-        "Create a .env file in the project root or set environment variables manually.",
-        UserWarning
+    raise RuntimeError(
+        "Failed to load .env file. Please ensure .env exists in project root "
+        "or environment variables are set."
     )
 
-# Validate required API keys
-# Note: We warn instead of raising to allow partial imports for testing
-is_valid, missing_keys = validate_required_keys(verbose=True)
-if not is_valid:
-    import warnings
-    warnings.warn(
-        f"Missing required API keys: {', '.join(missing_keys)}. "
-        "Some RegimeFlex features may not work. See env.example for required keys.",
-        UserWarning
+# Validate required API keys are present
+if not validate_required_keys():
+    raise RuntimeError(
+        "Missing required API keys. Please check your .env file contains:\n"
+        "  - ALPACA_KEY or APCA_API_KEY_ID\n"
+        "  - ALPACA_SECRET or APCA_API_SECRET_KEY\n"
+        "  - POLYGON_KEY or POLYGON_API_KEY"
     )
 
-# Now safe to import other modules that might need environment variables
-# Additional imports can be added here as needed
-
+# Package metadata
 __version__ = "30.0.0"
 __author__ = "RegimeFlex Team"
+
+# Now safe to import other modules that depend on environment variables
+# (Future imports can be added here)

@@ -9,9 +9,9 @@ from regimeflex.engine.config import Config
 from regimeflex.engine.identity import RegimeFlexIdentity as RF
 from regimeflex.engine.env import load_env
 from regimeflex.engine.data_providers import fetch_polygon_daily, fetch_alpaca_daily
+from regimeflex.config.paths import CACHE_DIR, PROJECT_ROOT
 
-CACHE_DIR = Path("data/cache")
-CACHE_DIR.mkdir(parents=True, exist_ok=True)
+# CACHE_DIR is already created by paths module on import
 
 @dataclass(frozen=True)
 class DailyBar:
@@ -79,7 +79,7 @@ def run_validations(df: pd.DataFrame, symbol: str):
     validate_sorted_unique(df, symbol)
     # Get max_lag_days from config
     from regimeflex.engine.config import Config
-    cfg = Config(".")._load_yaml("config/data.yaml")
+    cfg = Config(PROJECT_ROOT)._load_yaml("config/data.yaml")
     max_lag = cfg.get("staleness", {}).get("max_days_ok", 3)
     validate_recent(df, symbol, max_lag_days=max_lag)
     validate_volume(df, symbol)
@@ -110,8 +110,8 @@ def seed_cache(symbol: str, df: pd.DataFrame) -> None:
     save_to_cache(symbol, df)
 
 def get_daily_bars_with_provider(symbol: str, force_refresh: bool = False) -> pd.DataFrame:
-    cfg = Config(".").run  # not needed; just to ensure config loads? we need data.yaml
-    data_cfg = Config(".")._load_yaml("config/data.yaml")  # reuse loader
+    cfg = Config(PROJECT_ROOT).run  # not needed; just to ensure config loads? we need data.yaml
+    data_cfg = Config(PROJECT_ROOT)._load_yaml("config/data.yaml")  # reuse loader
     provider = (data_cfg.get("provider") or "cache").lower()
     lookback = int(data_cfg.get("lookback_days", 800))
     force_refresh = bool(data_cfg.get("force_refresh", force_refresh))

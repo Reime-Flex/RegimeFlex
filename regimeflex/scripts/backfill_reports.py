@@ -20,8 +20,9 @@ def _to_date(s):
     return None if s in (None, "", "null") else datetime.fromisoformat(s).date()
 
 def main():
-    cfg = Config(".")._load_yaml("config/backfill.yaml")
-    run = Config(".").run or {}
+    from regimeflex.config.paths import PROJECT_ROOT
+    cfg = Config(PROJECT_ROOT)._load_yaml("config/backfill.yaml")
+    run = Config(PROJECT_ROOT).run or {}
     equity = float(run.get("equity", 25_000.0))
 
     out_dir = cfg.get("out_dir", "reports/backfill")
@@ -48,7 +49,8 @@ def main():
         return
 
     # warm-up length: need at least slow MA; read from exposure.yaml
-    exp = Config(".")._load_yaml("config/exposure.yaml")
+    from regimeflex.config.paths import PROJECT_ROOT
+    exp = Config(PROJECT_ROOT)._load_yaml("config/exposure.yaml")
     slow_ma = int(exp["trend"]["slow_ma"])
     fast_ma = int(exp["trend"]["fast_ma"])
     bb_p = int(exp["weights"]["bb_period"])
