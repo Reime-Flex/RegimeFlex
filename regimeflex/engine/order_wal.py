@@ -6,7 +6,7 @@ from typing import Dict, Any, List, Optional
 from dataclasses import dataclass, asdict
 import fcntl
 
-WAL_FILE = Path("data/state/order_wal.jsonl")
+from regimeflex.config.paths import ORDER_WAL_FILE as WAL_FILE
 
 @dataclass
 class WALEntry:

@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from datetime import datetime, timezone
 
-REGIME_STATE_FILE = Path("data/state/regime_state.json")
+from regimeflex.config.paths import REGIME_STATE_FILE
 
 def load_regime_state() -> Dict[str, Any]:
     """Load persistent regime state with last confirmed regime."""
