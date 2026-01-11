@@ -190,36 +190,36 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         incidents = IncidentLogger(root=".")
         
         # Config echo - one concise sanity line
-    echo = collect_config_echo()
-    RF.print_log(
+        echo = collect_config_echo()
+        RF.print_log(
         "CFG → "
         f"pair={echo['pair']} | eod={echo['eod']} | turnover={echo['turnover']} | "
         f"cadence={echo['cadence']} | minΔ={echo['minΔ']} | coalesce={echo['coalesce']} | "
         f"stale≤{echo['stale≤']} | tsi={echo['tsi']} | tele={echo['tele']}",
         "INFO"
-    )
+        )
     
-    # Track no-op reason for days with zero intents
-    noop_reason = None
+        # Track no-op reason for days with zero intents
+        noop_reason = None
 
-    # Config snapshot hash (all YAML files in config/)
-    cfg_full, cfg_short, cfg_manifest = config_snapshot_hash(Path("."))
-    RF.print_log(f"CFG hash: {cfg_short}", "INFO")
+        # Config snapshot hash (all YAML files in config/)
+        cfg_full, cfg_short, cfg_manifest = config_snapshot_hash(Path("."))
+        RF.print_log(f"CFG hash: {cfg_short}", "INFO")
 
-    # Config fingerprint (legacy, for backward compatibility)
-    fp = compute_fingerprint(".")
-    RF.print_log(f"Config fingerprint: {fp['sha256_16']} ({len(fp['files'])} files)", "INFO")
+        # Config fingerprint (legacy, for backward compatibility)
+        fp = compute_fingerprint(".")
+        RF.print_log(f"Config fingerprint: {fp['sha256_16']} ({len(fp['files'])} files)", "INFO")
 
-    # Audit the fingerprint
-    audit = ENSStyleAudit()
-    audit.log(kind="CFG", data={"hash16": fp["sha256_16"], "hash": fp["sha256"], "files": fp["files"]})
+        # Audit the fingerprint
+        audit = ENSStyleAudit()
+        audit.log(kind="CFG", data={"hash16": fp["sha256_16"], "hash": fp["sha256"], "files": fp["files"]})
     
-    # Note: Kill switch already checked at function start, skip duplicate check
+        # Note: Kill switch already checked at function start, skip duplicate check
 
-    # EOD timing guard
-    ok_time, why = eod_ready(minutes_to_close)
-    RF.print_log(f"EOD timing check → {why}", "RISK" if not ok_time else "INFO")
-    if not ok_time:
+        # EOD timing guard
+        ok_time, why = eod_ready(minutes_to_close)
+        RF.print_log(f"EOD timing check → {why}", "RISK" if not ok_time else "INFO")
+        if not ok_time:
         # Exit cleanly before any actions
         noop_reason = "EOD_GUARD_TOO_EARLY"
         duration_sec = round(time.perf_counter() - t0, 3)
@@ -258,8 +258,8 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         return result
 
         # Decision window ping (when within EOD window)
-    tele_cfg = (Config(".").telemetry or {})
-    if tele_cfg.get("decision_ping", True) and tele_cfg.get("enabled", True):
+        tele_cfg = (Config(".").telemetry or {})
+        if tele_cfg.get("decision_ping", True) and tele_cfg.get("enabled", True):
         # brief context
         exp_cfg = Config(".")._load_yaml("config/exposure.yaml")
         fast = exp_cfg["trend"]["fast_ma"]
@@ -280,16 +280,16 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         notifier = Notifier(TGCreds(token=env.telegram_bot_token, chat_id=env.telegram_chat_id))
         notifier.send(msg)
 
-    # Always print a concise console line too
-    RF.print_log(f"Decision window active — {minutes_to_close}m to close", "INFO")
+        # Always print a concise console line too
+        RF.print_log(f"Decision window active — {minutes_to_close}m to close", "INFO")
 
-    # Load env + config (keys not required in offline)
-    env = load_env()
-    cfg = Config(".")
-    risk_cfg = RiskConfig()
+        # Load env + config (keys not required in offline)
+        env = load_env()
+        cfg = Config(".")
+        risk_cfg = RiskConfig()
 
-    # Helper function to attach model manifest to crumbs
-    def attach_model_manifest(crumbs_dict: dict) -> dict:
+        # Helper function to attach model manifest to crumbs
+        def attach_model_manifest(crumbs_dict: dict) -> dict:
         """Attach model manifest info to breadcrumbs dictionary."""
         manifest = load_model_manifest(Path("."))
         model_info = (manifest.get("model") or {})
@@ -303,30 +303,30 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         })
         return crumbs_dict
 
-    # Calendar guard
-    sched = cfg.schedule or {}
-    today = date.today()
+        # Calendar guard
+        sched = cfg.schedule or {}
+        today = date.today()
 
-    is_fomc = is_fomc_blackout(
+        is_fomc = is_fomc_blackout(
         today,
         fomc_meetings=sched.get("fomc_dates", []),
         window=tuple(sched.get("fomc_blackout_window", [-1, 1]))
-    )
-    is_opex_day = is_opex(today, overrides=sched.get("opex_overrides", []))
+        )
+        is_opex_day = is_opex(today, overrides=sched.get("opex_overrides", []))
 
-    # log status
-    RF.print_log(f"Calendar → FOMC blackout={is_fomc}, OPEX={is_opex_day}", "RISK")
+        # log status
+        RF.print_log(f"Calendar → FOMC blackout={is_fomc}, OPEX={is_opex_day}", "RISK")
 
-    # Market session guard
-    sch_cfg = Config(".")._load_yaml("config/schedule.yaml")
-    ms = (sch_cfg.get("market_session") or {})
-    block_full = bool(ms.get("block_full_holidays", True))
-    block_half = bool(ms.get("block_half_days", True))
+        # Market session guard
+        sch_cfg = Config(".")._load_yaml("config/schedule.yaml")
+        ms = (sch_cfg.get("market_session") or {})
+        block_full = bool(ms.get("block_full_holidays", True))
+        block_half = bool(ms.get("block_half_days", True))
 
-    sess, note = session_status()  # "FULL" | "NO_SESSION" | "HALF_DAY"
+        sess, note = session_status()  # "FULL" | "NO_SESSION" | "HALF_DAY"
     
-    # Initialize crumbs early for session guard
-    crumbs = {
+        # Initialize crumbs early for session guard
+        crumbs = {
         "vix": vix,
         "fomc_blackout": is_fomc,
         "opex": is_opex_day,
@@ -335,12 +335,12 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         "config_hash": cfg_full,
         "config_hash16": cfg_short,
         "config_manifest": cfg_manifest,
-    }
+        }
     
-    # Load positions early for early return if needed
-    positions_before_early = load_positions()
+        # Load positions early for early return if needed
+        positions_before_early = load_positions()
     
-    if sess == "NO_SESSION" and block_full:
+        if sess == "NO_SESSION" and block_full:
         RF.print_log(f"Session guard: {sess} ({note}) → skip trading", "RISK")
         crumbs.update({
             "no_op": True, 
@@ -407,10 +407,10 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         
         return result
 
-    # --- Morning Rush Filter ---
-    # Avoid trading 9:30-9:45 AM EST due to opening gap volatility.
-    mr_check = morning_rush_check(sch_cfg)
-    if mr_check.get("blocked"):
+        # --- Morning Rush Filter ---
+        # Avoid trading 9:30-9:45 AM EST due to opening gap volatility.
+        mr_check = morning_rush_check(sch_cfg)
+        if mr_check.get("blocked"):
         RF.print_log(f"Morning Rush: {mr_check['reason']}", "RISK")
         crumbs.update({
              "no_op": True,
@@ -512,29 +512,29 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         
         return result
 
-    # Resolve execution instruments
-    exec_map = resolve_execution_pair()
-    LONG  = sym_upper(exec_map["long"])       # "QQQ" or "TQQQ"
-    SHORT = sym_upper(exec_map["short"])      # "PSQ" or "SQQQ"
-    sides = [LONG, SHORT]
+        # Resolve execution instruments
+        exec_map = resolve_execution_pair()
+        LONG  = sym_upper(exec_map["long"])       # "QQQ" or "TQQQ"
+        SHORT = sym_upper(exec_map["short"])      # "PSQ" or "SQQQ"
+        sides = [LONG, SHORT]
 
-    # Load price refs for sizing/valuations
-    long_df  = get_daily_bars(exec_map["long_ref"])
-    short_df = get_daily_bars(exec_map["short_ref"])
+        # Load price refs for sizing/valuations
+        long_df  = get_daily_bars(exec_map["long_ref"])
+        short_df = get_daily_bars(exec_map["short_ref"])
 
-    # Price source echo & as-of alignment check
-    data_cfg = Config(".")._load_yaml("config/data.yaml")
-    se = (data_cfg.get("source_echo") or {})
-    echo_enabled = bool(se.get("enabled", True))
-    strict_same = bool(se.get("strict_same_asof", True))
-    tz_hint = str(se.get("timezone_hint", "US/Eastern"))
+        # Price source echo & as-of alignment check
+        data_cfg = Config(".")._load_yaml("config/data.yaml")
+        se = (data_cfg.get("source_echo") or {})
+        echo_enabled = bool(se.get("enabled", True))
+        strict_same = bool(se.get("strict_same_asof", True))
+        tz_hint = str(se.get("timezone_hint", "US/Eastern"))
     
-    # Determine provider name
-    provider_name = (data_cfg.get("provider") or "cache").lower()
-    if provider_name == "cache":
+        # Determine provider name
+        provider_name = (data_cfg.get("provider") or "cache").lower()
+        if provider_name == "cache":
         provider_name = "local-cache"
 
-    if echo_enabled:
+        if echo_enabled:
         # Build per-symbol metadata
         long_meta  = build_source_meta(LONG,  provider=provider_name, df=long_df)
         short_meta = build_source_meta(SHORT, provider=provider_name, df=short_df)
@@ -564,22 +564,22 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
                 crumbs.update({"price_common_date": f"{asof_long}|{asof_short}"})
             RF.print_log(f"Price as-of: {crumbs['price_common_date']} ({tz_hint})", "INFO")
 
-    # Bar hygiene validation
-    bh = (data_cfg.get("bar_hygiene") or {})
-    bh_enabled = bool(bh.get("enabled", True))
-    bh_action = str(bh.get("action", "quarantine")).lower()
+        # Bar hygiene validation
+        bh = (data_cfg.get("bar_hygiene") or {})
+        bh_enabled = bool(bh.get("enabled", True))
+        bh_action = str(bh.get("action", "quarantine")).lower()
 
-    bad_syms = []
-    bad_notes = {}
+        bad_syms = []
+        bad_notes = {}
 
-    if bh_enabled:
+        if bh_enabled:
         for sym, df in ((LONG, long_df), (SHORT, short_df)):
             ok, note = validate_last_bar(sym, df, bh)
             if not ok:
                 bad_syms.append(sym)
                 bad_notes[sym] = note
 
-    if bad_syms:
+        if bad_syms:
         # expose in breadcrumbs
         crumbs.update({"bar_hygiene_fail": True, "bar_hygiene_notes": bad_notes, "bar_hygiene_action": bh_action})
         RF.print_log(f"Bar hygiene FAIL: {bad_notes}", "ERROR")
@@ -603,34 +603,34 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
                 "breadcrumbs": crumbs,
             }
             return result
-    else:
+        else:
         crumbs.update({"bar_hygiene_fail": False})
 
-    # Signal underlier
-    sig_sym, sig_df_orig = resolve_signal_underlier()
-    sig_df = sig_df_orig.copy()
-    if "regime_live" not in sig_df.columns:
+        # Signal underlier
+        sig_sym, sig_df_orig = resolve_signal_underlier()
+        sig_df = sig_df_orig.copy()
+        if "regime_live" not in sig_df.columns:
         slow_ma_series = sig_df["close"].rolling(200, min_periods=200).mean()
         sig_df["regime_live"] = (sig_df["close"] >= slow_ma_series).fillna(False)
 
-    # Compute market phase
-    exp_cfg = Config(".")._load_yaml("config/exposure.yaml")
-    fast = exp_cfg["trend"]["fast_ma"]
-    bb_p = exp_cfg["weights"]["bb_period"]
-    bb_std = exp_cfg["weights"]["bb_std"]
+        # Compute market phase
+        exp_cfg = Config(".")._load_yaml("config/exposure.yaml")
+        fast = exp_cfg["trend"]["fast_ma"]
+        bb_p = exp_cfg["weights"]["bb_period"]
+        bb_std = exp_cfg["weights"]["bb_std"]
 
-    phase = classify_phase(sig_df, fast=fast, bb_p=bb_p, bb_std=bb_std)
-    RF.print_log(f"Signal phase → {phase}", "INFO")
+        phase = classify_phase(sig_df, fast=fast, bb_p=bb_p, bb_std=bb_std)
+        RF.print_log(f"Signal phase → {phase}", "INFO")
 
-    # Signal stability computation
-    metrics_cfg = Config(".")._load_yaml("config/metrics.yaml")
-    ss_cfg = (metrics_cfg.get("signal_stability") or {})
-    ss_enabled = bool(ss_cfg.get("enabled", True))
-    ss_lookback = int(ss_cfg.get("lookback_days", 14))
-    ss_engines = [str(x) for x in (ss_cfg.get("engines") or ["trend", "mr"])]
+        # Signal stability computation
+        metrics_cfg = Config(".")._load_yaml("config/metrics.yaml")
+        ss_cfg = (metrics_cfg.get("signal_stability") or {})
+        ss_enabled = bool(ss_cfg.get("enabled", True))
+        ss_lookback = int(ss_cfg.get("lookback_days", 14))
+        ss_engines = [str(x) for x in (ss_cfg.get("engines") or ["trend", "mr"])]
 
-    stability = {}
-    if ss_enabled and len(sig_df) > 0:
+        stability = {}
+        if ss_enabled and len(sig_df) > 0:
         # Compute signals for last N days
         tail_len = min(ss_lookback, len(sig_df))
         trend_dirs = []
@@ -682,19 +682,19 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
                 stability[eng] = {"flips": int(flips), "score": round(score, 3), "n": int(len(dirs))}
             else:
                 stability[eng] = {"flips": None, "score": None, "n": 0, "note": "insufficient_data"}
-    else:
+        else:
         if not ss_enabled:
             stability = {"note": "disabled"}
         else:
             stability = {"note": "no_data"}
 
-    # breadcrumbs
-    crumbs.update({"signal_stability": stability})
+        # breadcrumbs
+        crumbs.update({"signal_stability": stability})
 
-    # Regime accuracy tracker
-    ra_cfg = (metrics_cfg.get("regime_accuracy") or {})
-    regime_acc = {}
-    if bool(ra_cfg.get("enabled", True)):
+        # Regime accuracy tracker
+        ra_cfg = (metrics_cfg.get("regime_accuracy") or {})
+        regime_acc = {}
+        if bool(ra_cfg.get("enabled", True)):
         min_hist = int(ra_cfg.get("min_history", 60))
         if len(sig_df) >= min_hist:
             lookahead = int(ra_cfg.get("lookahead_days", 5))
@@ -727,29 +727,29 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
                 }
         else:
             regime_acc = {"note": "insufficient_history", "available": len(sig_df)}
-    else:
+        else:
         regime_acc = {"note": "disabled"}
 
-    crumbs.update({"regime_accuracy": regime_acc})
+        crumbs.update({"regime_accuracy": regime_acc})
 
-    # Allocation from signal underlier
-    alloc_raw = exposure_allocator(sig_df)
-    alloc_raw, guard_note = enforce_exposure_caps(alloc_raw)
+        # Allocation from signal underlier
+        alloc_raw = exposure_allocator(sig_df)
+        alloc_raw, guard_note = enforce_exposure_caps(alloc_raw)
     
-    # Remap allocator output to execution symbols
-    alloc = {
+        # Remap allocator output to execution symbols
+        alloc = {
         LONG:  float(alloc_raw.get("TQQQ", 0.0)),
         SHORT: float(alloc_raw.get("SQQQ", 0.0)),
-    }
-    # Normalize symbol casing
-    alloc = ensure_keys_upper(alloc, sides)
+        }
+        # Normalize symbol casing
+        alloc = ensure_keys_upper(alloc, sides)
     
-    RF.print_log(f"Allocation (guarded) → {LONG}={alloc[LONG]:.2f} {SHORT}={alloc[SHORT]:.2f}", "INFO")
+        RF.print_log(f"Allocation (guarded) → {LONG}={alloc[LONG]:.2f} {SHORT}={alloc[SHORT]:.2f}", "INFO")
 
-    # Priority 2: Apply Leverage Decay Adjustment to allocation weights
-    # Calculate decay_stats early so we can apply adjustment before target creation
-    decay_stats = {}
-    try:
+        # Priority 2: Apply Leverage Decay Adjustment to allocation weights
+        # Calculate decay_stats early so we can apply adjustment before target creation
+        decay_stats = {}
+        try:
         from regimeflex.engine.decay import log_volatility_decay
         # Check Long Side (TQQQ) vs Index (QQQ)
         if long_df is not None and not long_df.empty and sig_df is not None and not sig_df.empty:
@@ -770,11 +770,11 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
                 lookback=20
             )
             decay_stats[SHORT] = d_short
-    except Exception as e:
+        except Exception as e:
         RF.print_log(f"Decay calculation failed (non-blocking): {e}", "RISK")
     
-    # Apply decay adjustment to allocation weights
-    if decay_stats:
+        # Apply decay adjustment to allocation weights
+        if decay_stats:
         for sym in [LONG, SHORT]:
             decay_data = decay_stats.get(sym)
             if decay_data and not decay_data.get("note"):
@@ -789,99 +789,99 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
                         "RISK"
                     )
 
-    # Calculate target dollar exposures based on allocator (after decay adjustment)
-    tqqq_target_dollars = equity * alloc[LONG]
-    sqqq_target_dollars = equity * alloc[SHORT]
+        # Calculate target dollar exposures based on allocator (after decay adjustment)
+        tqqq_target_dollars = equity * alloc[LONG]
+        sqqq_target_dollars = equity * alloc[SHORT]
     
-    # Determine primary target (largest allocation)
-    if tqqq_target_dollars > sqqq_target_dollars:
+        # Determine primary target (largest allocation)
+        if tqqq_target_dollars > sqqq_target_dollars:
         target_symbol = LONG  # Use dynamic long symbol
         target_dollars = tqqq_target_dollars
         target_direction = "LONG"
-    elif sqqq_target_dollars > tqqq_target_dollars:
+        elif sqqq_target_dollars > tqqq_target_dollars:
         target_symbol = SHORT  # Use dynamic short symbol
         target_dollars = sqqq_target_dollars
         target_direction = "LONG"
-    else:
+        else:
         target_symbol = LONG
         target_dollars = 0.0
         target_direction = "FLAT"
 
-    # Create target exposure
-    target_price = float((long_df if target_symbol == LONG else short_df)["close"].iloc[-1])
-    target_shares = target_dollars / target_price if target_price > 0 else 0.0
+        # Create target exposure
+        target_price = float((long_df if target_symbol == LONG else short_df)["close"].iloc[-1])
+        target_shares = target_dollars / target_price if target_price > 0 else 0.0
     
-    target = TargetExposure(
+        target = TargetExposure(
         symbol=target_symbol,
         direction=target_direction,
         dollars=target_dollars,
         shares=target_shares,
         notes=f"Exposure allocator: {LONG}={alloc[LONG]:.2f} {SHORT}={alloc[SHORT]:.2f}"
-    )
-    RF.print_log(f"Target → {target.symbol} | {target.direction} | ${target.dollars:,.2f}", "INFO")
+        )
+        RF.print_log(f"Target → {target.symbol} | {target.direction} | ${target.dollars:,.2f}", "INFO")
 
-    # Breadcrumbs for telemetry (merge with early crumbs from session guard)
-    crumbs.update({
+        # Breadcrumbs for telemetry (merge with early crumbs from session guard)
+        crumbs.update({
         "target_notes": target.notes,
         "signal_underlier": sig_sym,   # NEW
         "phase": phase,   # NEW
         "config_echo": echo,   # NEW: config echo for report/telemetry
-    })
+        })
 
-    # Compute plan reason (why exposure changed)
-    diag = compute_exposure_diagnostics(sig_df)
-    plan_reason = format_plan_reason(diag, phase=phase, guard_note=guard_note)
+        # Compute plan reason (why exposure changed)
+        diag = compute_exposure_diagnostics(sig_df)
+        plan_reason = format_plan_reason(diag, phase=phase, guard_note=guard_note)
     
-    # Log it
-    RF.print_log(f"Plan reason → {plan_reason}", "INFO")
+        # Log it
+        RF.print_log(f"Plan reason → {plan_reason}", "INFO")
     
-    # Add to breadcrumbs so telemetry/report can show it
-    crumbs.update({"plan_reason": plan_reason})
+        # Add to breadcrumbs so telemetry/report can show it
+        crumbs.update({"plan_reason": plan_reason})
 
-    # Positions (before)
-    positions_before_raw = load_positions()
-    RF.print_log(f"Positions BEFORE (raw): {positions_before_raw}", "INFO")
+        # Positions (before)
+        positions_before_raw = load_positions()
+        RF.print_log(f"Positions BEFORE (raw): {positions_before_raw}", "INFO")
     
-    # Reconcile effective positions from fills
-    positions_before, pos_note = effective_positions_before(
+        # Reconcile effective positions from fills
+        positions_before, pos_note = effective_positions_before(
         raw_positions_before=positions_before_raw,
         broker_positions_snapshot=None  # hook for future: pass real broker positions here if available
-    )
-    # Normalize symbol casing
-    positions_before = map_keys_upper(positions_before)
-    RF.print_log(f"Positions effective source: {pos_note}", "INFO")
-    RF.print_log(f"Positions BEFORE (effective): {positions_before}", "INFO")
+        )
+        # Normalize symbol casing
+        positions_before = map_keys_upper(positions_before)
+        RF.print_log(f"Positions effective source: {pos_note}", "INFO")
+        RF.print_log(f"Positions BEFORE (effective): {positions_before}", "INFO")
     
-    # Store positions source for reporting
-    positions_source = pos_note  # 'broker_snapshot' | 'local_fills_applied' | 'raw'
+        # Store positions source for reporting
+        positions_source = pos_note  # 'broker_snapshot' | 'local_fills_applied' | 'raw'
 
-    # Calculate exposure deltas (prev vs desired)
+        # Calculate exposure deltas (prev vs desired)
     
-    # Build a price map using common date to avoid NaNs
-    common_d, px_long, px_short = _last_common_close(long_df, short_df)
-    last_prices_map = {
+        # Build a price map using common date to avoid NaNs
+        common_d, px_long, px_short = _last_common_close(long_df, short_df)
+        last_prices_map = {
         LONG:  px_long,
         SHORT: px_short,
-    }
-    # Normalize symbol casing
-    last_prices_map = map_keys_upper(last_prices_map)
+        }
+        # Normalize symbol casing
+        last_prices_map = map_keys_upper(last_prices_map)
     
-    # Store common date for reporting/telemetry
-    common_date_str = common_d.strftime("%Y-%m-%d")
-    RF.print_log(f"Price common date → {common_date_str}", "INFO")
+        # Store common date for reporting/telemetry
+        common_date_str = common_d.strftime("%Y-%m-%d")
+        RF.print_log(f"Price common date → {common_date_str}", "INFO")
     
-    # --- Position drift detector (broker vs local) ---
-    risk_cfg = Config(".")._load_yaml("config/risk.yaml") if (Config(".").root / "config/risk.yaml").exists() else {}
-    drc = (risk_cfg.get("drift") or {})
-    drift_enabled = bool(drc.get("enabled", True))
-    check_syms = [s.upper() for s in (drc.get("symbols") or [LONG, SHORT])]
-    shares_eps = float(drc.get("shares_eps", 1.0))
-    notional_eps = float(drc.get("notional_eps", 200.0))
+        # --- Position drift detector (broker vs local) ---
+        risk_cfg = Config(".")._load_yaml("config/risk.yaml") if (Config(".").root / "config/risk.yaml").exists() else {}
+        drc = (risk_cfg.get("drift") or {})
+        drift_enabled = bool(drc.get("enabled", True))
+        check_syms = [s.upper() for s in (drc.get("symbols") or [LONG, SHORT])]
+        shares_eps = float(drc.get("shares_eps", 1.0))
+        notional_eps = float(drc.get("notional_eps", 200.0))
     
-    # If you have a broker snapshot, set it here; otherwise keep None.
-    broker_snapshot = None  # hook: replace with real positions when available
+        # If you have a broker snapshot, set it here; otherwise keep None.
+        broker_snapshot = None  # hook: replace with real positions when available
     
-    if drift_enabled:
+        if drift_enabled:
         drift_warn, drift_map, drift_note = compute_position_drift(
             local_pos=positions_before, broker_pos=broker_snapshot, prices=last_prices_map,
             symbols=check_syms, shares_eps=shares_eps, notional_eps=notional_eps
@@ -898,77 +898,77 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         else:
             RF.print_log("Drift OK", "INFO")
     
-    # Check data staleness
-    from datetime import datetime, timezone
+        # Check data staleness
+        from datetime import datetime, timezone
     
-    data_cfg = Config(".")._load_yaml("config/data.yaml")
-    max_days_ok = int(((data_cfg.get("staleness") or {}).get("max_days_ok", 3)))
+        data_cfg = Config(".")._load_yaml("config/data.yaml")
+        max_days_ok = int(((data_cfg.get("staleness") or {}).get("max_days_ok", 3)))
     
-    today = datetime.now(timezone.utc).date()
-    lag_days = (today - common_d.date()).days
-    is_stale = lag_days > max_days_ok
+        today = datetime.now(timezone.utc).date()
+        lag_days = (today - common_d.date()).days
+        is_stale = lag_days > max_days_ok
     
-    if is_stale:
+        if is_stale:
         RF.print_log(f"Price data stale: {lag_days}d old (>{max_days_ok}d)", "RISK")
     
-    # Calculate live equity from reconciled positions
-    import math
-    def _safe(f): 
+        # Calculate live equity from reconciled positions
+        import math
+        def _safe(f): 
         try:
             f = float(f); 
             return f if (f == f and math.isfinite(f)) else 0.0
         except Exception: 
             return 0.0
 
-    # live equity (gross) from reconciled positions
-    equity_now = 0.0
-    for sym, sh in positions_before.items():
+        # live equity (gross) from reconciled positions
+        equity_now = 0.0
+        for sym, sh in positions_before.items():
         px = _safe(last_prices_map.get(sym))
         equity_now += abs(_safe(sh) * px)
 
-    RF.print_log(f"Positions source → {positions_source} | equity_now=${equity_now:,.2f}", "INFO")
+        RF.print_log(f"Positions source → {positions_source} | equity_now=${equity_now:,.2f}", "INFO")
 
-    prev_w = current_exposure_weights(positions_before, last_prices_map, equity_ref=equity, sides=sides)
-    dW = exposure_delta(prev_w, alloc, sides=sides)
+        prev_w = current_exposure_weights(positions_before, last_prices_map, equity_ref=equity, sides=sides)
+        dW = exposure_delta(prev_w, alloc, sides=sides)
 
-    # Log concise delta line
-    RF.print_log(
+        # Log concise delta line
+        RF.print_log(
         f"Exposure change → {sides[0]} {prev_w[sides[0]]:.2f}→{alloc[sides[0]]:.2f} (Δ{dW[sides[0]]:+.2f}) | "
         f"{sides[1]} {prev_w[sides[1]]:.2f}→{alloc[sides[1]]:.2f} (Δ{dW[sides[1]]:+.2f})",
         "INFO"
-    )
+        )
 
-    # Apply turnover cap
-    # Build a positions_before subset keyed the same way as alloc
-    pos_before = {
+        # Apply turnover cap
+        # Build a positions_before subset keyed the same way as alloc
+        pos_before = {
         LONG:  float(positions_before.get(LONG, 0.0)),
         SHORT: float(positions_before.get(SHORT, 0.0)),
-    }
+        }
 
-    # Load turnover config
-    risk_cfg = Config(".")._load_yaml("config/risk.yaml") if (Config(".").root / "config/risk.yaml").exists() else {}
-    tov = (risk_cfg.get("turnover") or {})
-    max_frac = float(tov.get("max_pct_of_equity", 0.15))
-    mode = str(tov.get("mode", "clamp"))
+        # Load turnover config
+        risk_cfg = Config(".")._load_yaml("config/risk.yaml") if (Config(".").root / "config/risk.yaml").exists() else {}
+        tov = (risk_cfg.get("turnover") or {})
+        max_frac = float(tov.get("max_pct_of_equity", 0.15))
+        mode = str(tov.get("mode", "clamp"))
 
-    # Apply turnover cap
-    alloc_after_tov, desired_mv_after_tov, turnover_frac, tov_note = enforce_turnover_cap(
+        # Apply turnover cap
+        alloc_after_tov, desired_mv_after_tov, turnover_frac, tov_note = enforce_turnover_cap(
         alloc_weights=alloc,
         positions_before=pos_before,
         last_prices=last_prices_map,
         equity=equity,
         max_turnover_frac=max_frac,
         mode=mode,
-    )
+        )
     
-    # Replace alloc with capped version
-    alloc = alloc_after_tov
+        # Replace alloc with capped version
+        alloc = alloc_after_tov
     
-    RF.print_log(f"Turnover check → {turnover_frac:.2%} of equity | {tov_note}", "INFO")
+        RF.print_log(f"Turnover check → {turnover_frac:.2%} of equity | {tov_note}", "INFO")
 
-    # --- Sanity: mutual exclusivity of sides ---
-    san = (risk_cfg.get("sanity") or {}).get("mutual_exclusive_sides", {})
-    if bool(san.get("enabled", True)):
+        # --- Sanity: mutual exclusivity of sides ---
+        san = (risk_cfg.get("sanity") or {}).get("mutual_exclusive_sides", {})
+        if bool(san.get("enabled", True)):
         thr = float(san.get("threshold", 0.05))
         ok, note = check_mutual_exclusive(alloc, LONG, SHORT, threshold=thr)
         if not ok:
@@ -1010,9 +1010,9 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         else:
             crumbs.update({"sanity_violation": False})
 
-    # --- Exposure rounding harmonizer ---
-    rnd = (risk_cfg.get("rounding") or {})
-    if bool(rnd.get("enabled", True)):
+        # --- Exposure rounding harmonizer ---
+        rnd = (risk_cfg.get("rounding") or {})
+        if bool(rnd.get("enabled", True)):
         step = float(rnd.get("share_step", 0.001))
         eps  = float(rnd.get("exposure_epsilon", 0.00005))
         alloc_h, shares_h = harmonize_exposure(prev_w, alloc, last_prices_map, equity_now, step, eps)
@@ -1057,15 +1057,15 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
             f"{sides[1]} {prev_w[sides[1]]:.2f}→{alloc[sides[1]]:.2f} (Δ{dW[sides[1]]:+.2f})",
             "INFO"
         )
-    else:
+        else:
         crumbs.update({"rounded_shares": {}})
 
-    # Exposure concentration meter
-    mcfg = Config(".")._load_yaml("config/metrics.yaml")
-    xcfg = (mcfg.get("exposure_concentration") or {})
-    xc_enabled = bool(xcfg.get("enabled", True))
+        # Exposure concentration meter
+        mcfg = Config(".")._load_yaml("config/metrics.yaml")
+        xcfg = (mcfg.get("exposure_concentration") or {})
+        xc_enabled = bool(xcfg.get("enabled", True))
     
-    if xc_enabled:
+        if xc_enabled:
         # Use final desired allocations (post-guards / rounding harmonizer)
         # Create signed map: LONG is positive, SHORT is negative
         signed = {LONG: float(alloc.get(LONG, 0.0)), SHORT: -float(alloc.get(SHORT, 0.0))}
@@ -1093,8 +1093,8 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
             }
         })
 
-    # Add to breadcrumbs for report/telemetry
-    crumbs.update({
+        # Add to breadcrumbs for report/telemetry
+        crumbs.update({
         "exec_long": LONG,
         "exec_short": SHORT,
         "prev_exposure": { s: round(prev_w[s], 4) for s in sides },
@@ -1110,21 +1110,21 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         "price_stale_note": f"{lag_days}d old (> {max_days_ok}d)" if is_stale else "fresh",
         "run_duration_sec": round(time.perf_counter() - t0, 3),
         "versions": runtime_versions(),
-    })
+        })
 
-    # Plan intents
-    price = float((long_df if target.symbol == LONG else short_df)["close"].iloc[-1])
-    intents: List[OrderIntent] = plan_orders(
+        # Plan intents
+        price = float((long_df if target.symbol == LONG else short_df)["close"].iloc[-1])
+        intents: List[OrderIntent] = plan_orders(
         current_positions=positions_before,
         target=target,
         current_price=price,
         minutes_to_close=minutes_to_close,
         min_trade_value=min_trade_value,
         emergency_override=False,
-    )
+        )
     
-    # Normalize symbol casing in intents
-    intents = [
+        # Normalize symbol casing in intents
+        intents = [
         OrderIntent(
             symbol=sym_upper(intent.symbol),
             side=intent.side,
@@ -1134,13 +1134,13 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
             limit_price=intent.limit_price,
             reason=intent.reason
         ) for intent in intents
-    ]
+        ]
 
-    # Order preview CSV (when dry_run=true)
-    broker_cfg = Config(".")._load_yaml("config/broker.yaml")
-    dry_run_flag = bool((broker_cfg.get("alpaca") or {}).get("dry_run", True))
+        # Order preview CSV (when dry_run=true)
+        broker_cfg = Config(".")._load_yaml("config/broker.yaml")
+        dry_run_flag = bool((broker_cfg.get("alpaca") or {}).get("dry_run", True))
     
-    if dry_run_flag and intents:
+        if dry_run_flag and intents:
         preview_meta = {
             "exec_long": crumbs.get("exec_long", ""),
             "exec_short": crumbs.get("exec_short", ""),
@@ -1156,14 +1156,14 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         except Exception as e:
             RF.print_log(f"Order preview CSV failed: {e}", "ERROR")
 
-    # Cadence guard: filter intents based on recent trades
-    risk_cfg = Config(".")._load_yaml("config/risk.yaml") if (Config(".").root / "config/risk.yaml").exists() else {}
-    cad = (risk_cfg.get("cadence") or {})
-    cad_enabled = bool(cad.get("enabled", True))
-    cad_min_days = int(cad.get("min_days_between", 1))
-    cad_symbols = [s.upper() for s in (cad.get("symbols") or [])]
+        # Cadence guard: filter intents based on recent trades
+        risk_cfg = Config(".")._load_yaml("config/risk.yaml") if (Config(".").root / "config/risk.yaml").exists() else {}
+        cad = (risk_cfg.get("cadence") or {})
+        cad_enabled = bool(cad.get("enabled", True))
+        cad_min_days = int(cad.get("min_days_between", 1))
+        cad_symbols = [s.upper() for s in (cad.get("symbols") or [])]
 
-    def _cadence_block(it) -> bool:
+        def _cadence_block(it) -> bool:
         """Return True if this intent should be blocked by cadence."""
         sym = str(it.symbol).upper()
         if cad_symbols and sym not in cad_symbols:
@@ -1173,7 +1173,7 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
             return False  # never traded before
         return d < cad_min_days
 
-    if cad_enabled and intents:
+        if cad_enabled and intents:
         kept, blocked = [], []
         for it in intents:
             if _cadence_block(it):
@@ -1188,18 +1188,18 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
             RF.print_log(f"Cadence guard: filtered {len(blocked)} of {len(intents)} intent(s)", "RISK")
         intents = kept
 
-    # Add cadence info to breadcrumbs
-    crumbs.update({
+        # Add cadence info to breadcrumbs
+        crumbs.update({
         "cadence_enabled": cad_enabled,
         "cadence_min_days": cad_min_days,
-    })
+        })
 
-    # --- Exposure delta filter ---
-    ex_cfg = (risk_cfg.get("exposure_threshold") or {})
-    ex_enabled = bool(ex_cfg.get("enabled", True))
-    ex_min = float(ex_cfg.get("min_delta_abs", 0.01))
+        # --- Exposure delta filter ---
+        ex_cfg = (risk_cfg.get("exposure_threshold") or {})
+        ex_enabled = bool(ex_cfg.get("enabled", True))
+        ex_min = float(ex_cfg.get("min_delta_abs", 0.01))
 
-    if ex_enabled and intents:
+        if ex_enabled and intents:
         kept, filtered = [], []
         for it in intents:
             sym = str(it.symbol).upper()
@@ -1217,15 +1217,15 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
             RF.print_log(f"Exposure filter: {len(filtered)} of {len(intents)} intents below {ex_min:.2%}, skipped.", "RISK")
         intents = kept
 
-    # Add exposure threshold info to breadcrumbs
-    crumbs.update({
+        # Add exposure threshold info to breadcrumbs
+        crumbs.update({
         "exposure_min_delta": ex_min,
-    })
+        })
 
-    # Coalescing (side flip optimization)
-    risk_cfg = Config(".")._load_yaml("config/risk.yaml") if (Config(".").root / "config/risk.yaml").exists() else {}
-    coal = (risk_cfg.get("coalescing") or {})
-    if bool(coal.get("enabled", True)):
+        # Coalescing (side flip optimization)
+        risk_cfg = Config(".")._load_yaml("config/risk.yaml") if (Config(".").root / "config/risk.yaml").exists() else {}
+        coal = (risk_cfg.get("coalescing") or {})
+        if bool(coal.get("enabled", True)):
         c_intents, c_note = coalesce_side_flip(
             positions_before=positions_before,
             target_weights=alloc,
@@ -1255,10 +1255,10 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         else:
             crumbs.update({"coalesced_flip": False, "coalesce_note": c_note})
 
-    # Cash detection: both sides zero after all adjustments
-    is_cash = abs(float(alloc.get(LONG, 0.0))) <= 1e-9 and abs(float(alloc.get(SHORT, 0.0))) <= 1e-9
+        # Cash detection: both sides zero after all adjustments
+        is_cash = abs(float(alloc.get(LONG, 0.0))) <= 1e-9 and abs(float(alloc.get(SHORT, 0.0))) <= 1e-9
 
-    if is_cash:
+        if is_cash:
         # explicit breadcrumbs & target
         crumbs.update({
             "cash_mode": True,
@@ -1277,11 +1277,11 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         # ensure we emit no orders
         intents = []
         RF.print_log("Cash mode: both sides zero → CASH target", "INFO")
-    else:
+        else:
         crumbs.update({"cash_mode": False})
 
-    # If no intents, derive a reason so we can explain the no-op day.
-    if not intents:
+        # If no intents, derive a reason so we can explain the no-op day.
+        if not intents:
         # 1) If turnover rule said skip
         tov_note = crumbs.get("turnover_note", "")
         if isinstance(tov_note, str) and "skip" in tov_note.lower():
@@ -1304,12 +1304,12 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
                 noop_reason = "NO_CHANGE"
 
         crumbs.update({"no_op": True, "no_op_reason": noop_reason})
-    else:
+        else:
         crumbs.update({"no_op": False})
 
-    audit = ENSStyleAudit()
+        audit = ENSStyleAudit()
 
-    if not intents:
+        if not intents:
         RF.print_log("No trade planned (flat, blocked, or below threshold).", "SUCCESS")
         
         # Update crumbs with config hash before heartbeat
@@ -1366,29 +1366,29 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
             "config_fingerprint": fp
         }
 
-    # Log PLAN records
-    for it in intents:
+        # Log PLAN records
+        for it in intents:
         audit.log(kind="PLAN", data=_intent_to_dict(it))
 
-    # --- Optional: place with Alpaca if enabled in config ---
-    broker_cfg = Config(".")._load_yaml("config/broker.yaml") if (Config(".").root / "config/broker.yaml").exists() else {}
-    alp = (broker_cfg.get("alpaca") or {})
-    do_broker = bool(alp.get("enabled", True))  # default on, controlled by dry_run anyway
+        # --- Optional: place with Alpaca if enabled in config ---
+        broker_cfg = Config(".")._load_yaml("config/broker.yaml") if (Config(".").root / "config/broker.yaml").exists() else {}
+        alp = (broker_cfg.get("alpaca") or {})
+        do_broker = bool(alp.get("enabled", True))  # default on, controlled by dry_run anyway
     
-    # Use is_dry_run() to check ENV var and config (respects REGIMEFLEX_DRY_RUN=1)
-    from regimeflex.engine.exec_alpaca import is_dry_run
-    dry_run_broker = is_dry_run(".")
+        # Use is_dry_run() to check ENV var and config (respects REGIMEFLEX_DRY_RUN=1)
+        from regimeflex.engine.exec_alpaca import is_dry_run
+        dry_run_broker = is_dry_run(".")
     
-    mode = str(alp.get("mode", "paper")).lower()
-    base_url = ALPACA_PAPER_URL if (mode == "paper") else ALPACA_LIVE_URL
+        mode = str(alp.get("mode", "paper")).lower()
+        base_url = ALPACA_PAPER_URL if (mode == "paper") else ALPACA_LIVE_URL
 
-    # Check envs only if we intend to place real orders
-    env_issues = env_guard(broker_cfg)
+        # Check envs only if we intend to place real orders
+        env_issues = env_guard(broker_cfg)
     
-    forced_dry = False
-    missing_flat = {k: v for k, v in env_issues.items()}  # copy for breadcrumbs
+        forced_dry = False
+        missing_flat = {k: v for k, v in env_issues.items()}  # copy for breadcrumbs
     
-    if mode in ("paper", "live") and not dry_run_broker:
+        if mode in ("paper", "live") and not dry_run_broker:
         # we are about to trade — verify creds
         if "alpaca" in env_issues:
             # Flip to dry_run for safety
@@ -1396,24 +1396,24 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
             forced_dry = True
             RF.print_log(f"ENV GUARD: Missing broker env → forcing dry_run. Missing: {env_issues['alpaca']}", "RISK")
     
-    # Persist in breadcrumbs
-    if missing_flat:
+        # Persist in breadcrumbs
+        if missing_flat:
         crumbs.update({"env_missing": missing_flat})
-    crumbs.update({
+        crumbs.update({
         "dry_run": dry_run_broker,
         "env_forced_dry_run": forced_dry,
-    })
+        })
 
-    env = load_env()
-    exe = AlpacaExecutor(AlpacaCreds(key=env.alpaca_key, secret=env.alpaca_secret, base_url=base_url),
+        env = load_env()
+        exe = AlpacaExecutor(AlpacaCreds(key=env.alpaca_key, secret=env.alpaca_secret, base_url=base_url),
                          dry_run=dry_run_broker)
 
-    # Liquidity depth probe
-    liq_cfg = Config(".")._load_yaml("config/metrics.yaml").get("liquidity_depth", {}) or {}
-    adv_map = {}
-    intents_dict = []
+        # Liquidity depth probe
+        liq_cfg = Config(".")._load_yaml("config/metrics.yaml").get("liquidity_depth", {}) or {}
+        adv_map = {}
+        intents_dict = []
     
-    if bool(liq_cfg.get("enabled", True)) and intents:
+        if bool(liq_cfg.get("enabled", True)) and intents:
         win = int(liq_cfg.get("adv_window", 20))
         warn = float(liq_cfg.get("warn_frac", 0.05))
         crit = float(liq_cfg.get("crit_frac", 0.10))
@@ -1492,13 +1492,13 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
              intents = []
              result_intents = [] # Update result wrapper too if needed, but intents var is what matters for downstream execution
              
-    # --- Volatility Decay Logger ---
-    # Institutional-Grade Entry: Leverage Decay Logger
-    # Calculate and log 'Volatility Decay' on TQQQ/SQQQ holdings daily, comparing
-    # our performance against the raw QQQ index to ensure the 'Swing' strategy
-    # is actually outperforming.
-    decay_stats = {}
-    try:
+        # --- Volatility Decay Logger ---
+        # Institutional-Grade Entry: Leverage Decay Logger
+        # Calculate and log 'Volatility Decay' on TQQQ/SQQQ holdings daily, comparing
+        # our performance against the raw QQQ index to ensure the 'Swing' strategy
+        # is actually outperforming.
+        decay_stats = {}
+        try:
         # Check Long Side (TQQQ) vs Index (QQQ)
         if long_df is not None and not long_df.empty and sig_df is not None and not sig_df.empty:
             d_long = log_volatility_decay(
@@ -1543,15 +1543,15 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
                     "RISK"
                 )
              
-    except Exception as e:
+        except Exception as e:
         RF.print_log(f"Decay logger failed: {e}", "ERROR")
     
-    # ADV guardrail (reuse adv_map and intents_dict from liquidity depth probe, or build if needed)
-    risk_cfg_ag = Config(".")._load_yaml("config/risk.yaml") if (Config(".").root / "config/risk.yaml").exists() else {}
-    ag = (risk_cfg_ag.get("adv_guardrail") or {})
-    ag_enabled = bool(ag.get("enabled", True))
+        # ADV guardrail (reuse adv_map and intents_dict from liquidity depth probe, or build if needed)
+        risk_cfg_ag = Config(".")._load_yaml("config/risk.yaml") if (Config(".").root / "config/risk.yaml").exists() else {}
+        ag = (risk_cfg_ag.get("adv_guardrail") or {})
+        ag_enabled = bool(ag.get("enabled", True))
     
-    if ag_enabled and intents:
+        if ag_enabled and intents:
         # Build adv_map and intents_dict if not already built by liquidity depth probe
         if len(adv_map) == 0 or len(intents_dict) == 0:
             liq_cfg_fallback = Config(".")._load_yaml("config/metrics.yaml").get("liquidity_depth", {}) or {}
@@ -1621,12 +1621,12 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
                         reason=it_dict.get("reason", "adv_guard_scaled")
                     ))
 
-    # Kill-switch guard: hard block if conditions are met
-    risk_cfg_ks = Config(".")._load_yaml("config/risk.yaml") if (Config(".").root / "config/risk.yaml").exists() else {}
-    kill_result = evaluate_kill_switch(crumbs, risk_cfg_ks)
-    crumbs["kill_switch"] = kill_result  # store in breadcrumbs for replay/HTML
+        # Kill-switch guard: hard block if conditions are met
+        risk_cfg_ks = Config(".")._load_yaml("config/risk.yaml") if (Config(".").root / "config/risk.yaml").exists() else {}
+        kill_result = evaluate_kill_switch(crumbs, risk_cfg_ks)
+        crumbs["kill_switch"] = kill_result  # store in breadcrumbs for replay/HTML
     
-    if kill_result["triggered"]:
+        if kill_result["triggered"]:
         # Hard block for this run
         reason_text = "; ".join(kill_result["reasons"])
         existing_no_op = crumbs.get("no_op", False)
@@ -1664,13 +1664,13 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
             "config_fingerprint": fp
         }
 
-    # Anomaly detection: soft thresholds (log warnings, don't block)
-    # This runs after kill-switch but before panic guard
-    # We use the same risk_cfg_ks that was loaded for kill-switch
-    anomalies = detect_anomalies(crumbs, risk_cfg_ks)
-    crumbs["anomalies"] = anomalies  # store for replay/report/status
+        # Anomaly detection: soft thresholds (log warnings, don't block)
+        # This runs after kill-switch but before panic guard
+        # We use the same risk_cfg_ks that was loaded for kill-switch
+        anomalies = detect_anomalies(crumbs, risk_cfg_ks)
+        crumbs["anomalies"] = anomalies  # store for replay/report/status
     
-    if anomalies.get("any"):
+        if anomalies.get("any"):
         # Slippage anomaly
         sl = anomalies.get("slippage", {}) or {}
         if sl.get("flagged") and sl.get("reason"):
@@ -1689,11 +1689,11 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
                 {"reason": lq["reason"], "guards": crumbs.get("guards", {})},
             )
 
-    # Price source sanity check: validate presence and basic structure
-    ps_check = check_price_source(crumbs)
-    crumbs["price_source_check"] = ps_check
+        # Price source sanity check: validate presence and basic structure
+        ps_check = check_price_source(crumbs)
+        crumbs["price_source_check"] = ps_check
     
-    if not ps_check.get("ok", False):
+        if not ps_check.get("ok", False):
         # Log an incident; this does NOT block trading,
         # it only records that metadata is missing or malformed.
         incidents.log(
@@ -1702,16 +1702,16 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
             {"reason": ps_check.get("reason", "")}
         )
 
-    # Panic guard: prepare context snapshot
-    risk_cfg = Config(".")._load_yaml("config/risk.yaml") if (Config(".").root / "config/risk.yaml").exists() else {}
-    pg_cfg = (risk_cfg.get("panic_guard") or {})
-    pg_enabled = bool(pg_cfg.get("enabled", True))
-    pg_dir = Path(str(pg_cfg.get("out_dir", "logs/audit")))
-    pg_file = str(pg_cfg.get("filename", "panic.json"))
-    pg_tel = bool(pg_cfg.get("telegram_alert", True))
+        # Panic guard: prepare context snapshot
+        risk_cfg = Config(".")._load_yaml("config/risk.yaml") if (Config(".").root / "config/risk.yaml").exists() else {}
+        pg_cfg = (risk_cfg.get("panic_guard") or {})
+        pg_enabled = bool(pg_cfg.get("enabled", True))
+        pg_dir = Path(str(pg_cfg.get("out_dir", "logs/audit")))
+        pg_file = str(pg_cfg.get("filename", "panic.json"))
+        pg_tel = bool(pg_cfg.get("telegram_alert", True))
 
-    # Build a lightweight context snapshot (no assumptions; use what you already have)
-    panic_ctx = {
+        # Build a lightweight context snapshot (no assumptions; use what you already have)
+        panic_ctx = {
         "equity_now": equity_now,
         "last_prices_map": last_prices_map,
         "positions_before": positions_before,
@@ -1724,9 +1724,9 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         "dry_run": crumbs.get("dry_run", False),
         "config_hash16": crumbs.get("config_hash16", ""),
         "price_common_date": crumbs.get("price_common_date", ""),
-    }
+        }
 
-    try:
+        try:
         # Safety: Stale Data Check
         try:
             from regimeflex.engine.safety_wrapper import SafetyWrapper, StaleDataError
@@ -1856,7 +1856,7 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
                             notifier.send(f"⚠️ *Fill-quality drift*: {summary['current_avg']}bps vs {summary['baseline_avg']}bps (Δ {summary['delta_bps']}bps > {fq_cfg.get('worsen_bps',3.0)}bps)")
                     except Exception:
                         RF.print_log("Fill-quality drift Telegram alert failed.", "ERROR")
-    except Exception as e:
+        except Exception as e:
         RF.print_log(f"PANIC GUARD: exception during execution: {e}", "ERROR")
         if pg_enabled and intents:
             try:
@@ -1879,35 +1879,35 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         # re-raise so health shows FAIL and CI catches it
         raise
 
-    RF.print_log(f"Positions AFTER: {positions_after}", "INFO")
-    RF.print_log("Offline daily cycle complete", "SUCCESS")
+        RF.print_log(f"Positions AFTER: {positions_after}", "INFO")
+        RF.print_log("Offline daily cycle complete", "SUCCESS")
     
-    # Log run duration
-    duration_sec = round(time.perf_counter() - t0, 3)
-    RF.print_log(f"Run duration → {duration_sec:.3f}s", "INFO")
+        # Log run duration
+        duration_sec = round(time.perf_counter() - t0, 3)
+        RF.print_log(f"Run duration → {duration_sec:.3f}s", "INFO")
 
-    # Daily PnL/Exposure snapshot
-    try:
+        # Daily PnL/Exposure snapshot
+        try:
         equity_ref = float(Config(".").run.get("equity", 25000.0))
-    except Exception:
+        except Exception:
         equity_ref = 25000.0
 
-    # Last prices for valuation
-    last_prices = {
+        # Last prices for valuation
+        last_prices = {
         LONG: float(long_df["close"].iloc[-1]),
         SHORT: float(short_df["close"].iloc[-1]),
-    }
+        }
 
-    snap = snapshot_from_positions(positions_after, last_prices, equity_ref)
-    append_snapshot_csv(snap)
+        snap = snapshot_from_positions(positions_after, last_prices, equity_ref)
+        append_snapshot_csv(snap)
 
-    # Log rotation at end of daily run (config-gated)
-    logs_cfg = Config(".")._load_yaml("config/logs.yaml") if (Config(".").root / "config/logs.yaml").exists() else {}
-    if logs_cfg.get("rotate_on_run", True):
+        # Log rotation at end of daily run (config-gated)
+        logs_cfg = Config(".")._load_yaml("config/logs.yaml") if (Config(".").root / "config/logs.yaml").exists() else {}
+        if logs_cfg.get("rotate_on_run", True):
         rotate_all()
 
-    # Build final result for return
-    result = {
+        # Build final result for return
+        result = {
         "target": asdict(target),
         "positions_before": positions_before,
         "intents": [_intent_to_dict(it) for it in intents],
@@ -1915,26 +1915,26 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         "breadcrumbs": {**crumbs, "config_hash16": fp["sha256_16"]},
         "snapshot": snap,
         "config_fingerprint": fp
-    }
+        }
 
-    # Export CSV change report
-    try:
+        # Export CSV change report
+        try:
         csv_path = write_change_report(result)
         RF.print_log(f"CSV change report saved → {csv_path}", "INFO")
-    except Exception as e:
+        except Exception as e:
         RF.print_log(f"CSV export failed: {e}", "ERROR")
 
-    # Append run summary JSONL
-    try:
+        # Append run summary JSONL
+        try:
         path = append_run_summary(result)
         RF.print_log(f"Run summary appended → {path}", "INFO")
-    except Exception as e:
+        except Exception as e:
         RF.print_log(f"Run summary append failed: {e}", "ERROR")
 
-    # Compressed logs rotation (gzip old logs)
-    rep_cfg = Config(".")._load_yaml("config/reports.yaml") if (Config(".").root / "config/reports.yaml").exists() else {}
-    lr = (rep_cfg.get("logs_rotation") or {})
-    if bool(lr.get("enabled", True)):
+        # Compressed logs rotation (gzip old logs)
+        rep_cfg = Config(".")._load_yaml("config/reports.yaml") if (Config(".").root / "config/reports.yaml").exists() else {}
+        lr = (rep_cfg.get("logs_rotation") or {})
+        if bool(lr.get("enabled", True)):
         patterns = [str(x) for x in (lr.get("include") or [])]
         days_old = int(lr.get("days_old", 7))
         exclude_gz = bool(lr.get("exclude_gz", True))
@@ -1944,42 +1944,42 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         else:
             RF.print_log("Log rotation: nothing to compress.", "INFO")
 
-    # Metrics: Turnover Stability Index (TSI)
-    met_cfg = Config(".")._load_yaml("config/metrics.yaml") if (Config(".").root / "config/metrics.yaml").exists() else {}
-    tsi_cfg = (met_cfg.get("turnover_stability") or {})
-    tsi_win = int(tsi_cfg.get("window_days", 7))
-    tsi_warn = float(tsi_cfg.get("warn_threshold", 0.25))
+        # Metrics: Turnover Stability Index (TSI)
+        met_cfg = Config(".")._load_yaml("config/metrics.yaml") if (Config(".").root / "config/metrics.yaml").exists() else {}
+        tsi_cfg = (met_cfg.get("turnover_stability") or {})
+        tsi_win = int(tsi_cfg.get("window_days", 7))
+        tsi_warn = float(tsi_cfg.get("warn_threshold", 0.25))
 
-    tsi = compute_tsi(tsi_win)
-    tsi_warn_flag = bool(tsi["avg_turnover"] > tsi_warn)
+        tsi = compute_tsi(tsi_win)
+        tsi_warn_flag = bool(tsi["avg_turnover"] > tsi_warn)
 
-    crumbs.update({
+        crumbs.update({
         "tsi_window_days": tsi_win,
         "tsi_avg_turnover": round(tsi["avg_turnover"], 4),
         "tsi_days_count": tsi["count_days"],
         "tsi_warn": tsi_warn_flag,
         "tsi_warn_threshold": tsi_warn,
-    })
+        })
 
-    if tsi_warn_flag:
+        if tsi_warn_flag:
         RF.print_log(f"TSI warn: avg turnover {tsi['avg_turnover']:.2%} over {tsi_win}d exceeds {tsi_warn:.2%}", "RISK")
 
-    # Update crumbs with config hash before heartbeat
-    crumbs.update({"config_hash16": fp["sha256_16"]})
-    attach_model_manifest(crumbs)
+        # Update crumbs with config hash before heartbeat
+        crumbs.update({"config_hash16": fp["sha256_16"]})
+        attach_model_manifest(crumbs)
     
-    # Store execution mode (live vs dry-run and source)
-    exec_mode = dry_run_details(".")
-    crumbs["execution_mode"] = exec_mode
-    # Log dry-run if forced by ENV
-    if exec_mode.get("dry_run") and exec_mode.get("source") == "env":
+        # Store execution mode (live vs dry-run and source)
+        exec_mode = dry_run_details(".")
+        crumbs["execution_mode"] = exec_mode
+        # Log dry-run if forced by ENV
+        if exec_mode.get("dry_run") and exec_mode.get("source") == "env":
         incidents.log(
             "INFO",
             "Run executed in DRY-RUN mode due to environment variable",
             {"env": exec_mode}
         )
-    # Log no-op decision
-    if crumbs.get("no_op", False):
+        # Log no-op decision
+        if crumbs.get("no_op", False):
         incidents.log(
             "INFO",
             "No-op decision executed",
@@ -1989,10 +1989,10 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
             }
         )
 
-    # --- Daily heartbeat telemetry ---
-    tel_cfg = Config(".")._load_yaml("config/telemetry.yaml") if (Config(".").root / "config/telemetry.yaml").exists() else {}
-    hb = (tel_cfg.get("heartbeat") or {})
-    if bool(hb.get("enabled", True)) and tel_cfg.get("enabled", True):
+        # --- Daily heartbeat telemetry ---
+        tel_cfg = Config(".")._load_yaml("config/telemetry.yaml") if (Config(".").root / "config/telemetry.yaml").exists() else {}
+        hb = (tel_cfg.get("heartbeat") or {})
+        if bool(hb.get("enabled", True)) and tel_cfg.get("enabled", True):
         try:
             env = load_env()
             notifier = Notifier(TGCreds(token=env.telegram_bot_token, chat_id=env.telegram_chat_id))
@@ -2001,24 +2001,24 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         except Exception as e:
             RF.print_log(f"Heartbeat failed: {e}", "ERROR")
     
-    # Optional: stdout heartbeat (always log, even if Telegram disabled)
-    RF.print_log(
+        # Optional: stdout heartbeat (always log, even if Telegram disabled)
+        RF.print_log(
         f"HB | {crumbs.get('config_hash16','??')} · {crumbs.get('price_common_date','????-??-??')} · "
         f"{crumbs.get('exec_long','')}/{crumbs.get('exec_short','')} · {crumbs.get('run_duration_sec',0):.2f}s · "
         f"{'no-op '+str(crumbs.get('no_op_reason','')) if crumbs.get('no_op') else 'active'}",
         "INFO"
-    )
+        )
 
-    # Update result breadcrumbs with config hash
-    result["breadcrumbs"] = crumbs
+        # Update result breadcrumbs with config hash
+        result["breadcrumbs"] = crumbs
     
-    # Release run lock before returning
-    release_run_lock()
+        # Release run lock before returning
+        release_run_lock()
 
-    # Replay pack (one-file snapshot to exactly reproduce a day)
-    rep_cfg_rpl = Config(".")._load_yaml("config/reports.yaml") if (Config(".").root / "config/reports.yaml").exists() else {}
-    rpl = (rep_cfg_rpl.get("replay_pack") or {})
-    if bool(rpl.get("enabled", True)):
+        # Replay pack (one-file snapshot to exactly reproduce a day)
+        rep_cfg_rpl = Config(".")._load_yaml("config/reports.yaml") if (Config(".").root / "config/reports.yaml").exists() else {}
+        rpl = (rep_cfg_rpl.get("replay_pack") or {})
+        if bool(rpl.get("enabled", True)):
         try:
             out_dir = Path(str(rpl.get("out_dir", "replays")))
             tail = int(rpl.get("bars_tail", 5))
@@ -2045,13 +2045,13 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         except Exception as e:
             RF.print_log(f"Replay pack write failed: {e}", "ERROR")
 
-    # --- 13. End of Cycle (Watchdog) ---
-    from regimeflex.engine.guardian.watchdog import touch_heartbeat
-    touch_heartbeat(
+        # --- 13. End of Cycle (Watchdog) ---
+        from regimeflex.engine.guardian.watchdog import touch_heartbeat
+        touch_heartbeat(
         regime=crumbs.get('phase', 'UNKNOWN'),
         equity=crumbs.get('equity_now'),
         root=PROJECT_ROOT  # Use absolute project root from paths module
-    )
+        )
     
     finally:
         # Always release run lock, even if exception occurs
