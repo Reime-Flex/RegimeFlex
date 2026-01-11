@@ -5,19 +5,22 @@ from pathlib import Path
 from datetime import datetime, timezone
 
 from regimeflex.config.paths import REGIME_STATE_FILE
+from regimeflex.utils.atomic_file import atomic_write_json, atomic_read_json
 
 def load_regime_state() -> Dict[str, Any]:
     """Load persistent regime state with last confirmed regime."""
-    if not REGIME_STATE_FILE.exists():
-        return {"confirmed_regime": None, "since_date": None, "consecutive_days": 0}
-    try:
-        return json.loads(REGIME_STATE_FILE.read_text())
-    except Exception:
-        return {"confirmed_regime": None, "since_date": None, "consecutive_days": 0}
+    default_state = {"confirmed_regime": None, "since_date": None, "consecutive_days": 0}
+    # Use atomic read to prevent reading corrupted files
+    data = atomic_read_json(REGIME_STATE_FILE, default=default_state)
+    return data if data is not None else default_state
 
 def save_regime_state(state: Dict[str, Any]) -> None:
-    REGIME_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    REGIME_STATE_FILE.write_text(json.dumps(state, indent=2))
+    """Save regime state atomically to prevent corruption."""
+    success = atomic_write_json(REGIME_STATE_FILE, state, indent=2)
+    if not success:
+        # Log error but don't raise (non-critical operation)
+        import sys
+        print(f"Warning: Failed to save regime state to {REGIME_STATE_FILE}", file=sys.stderr)
 
 def detect_regime_with_hysteresis(
     qqq_close: float,

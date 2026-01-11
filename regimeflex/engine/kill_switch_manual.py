@@ -13,6 +13,7 @@ from typing import Dict, Any, Optional
 
 from regimeflex.engine.identity import RegimeFlexIdentity as RF
 from regimeflex.config.paths import KILL_SWITCH_FILE
+from regimeflex.utils.atomic_file import atomic_write_json, atomic_read_json, atomic_delete_file
 
 
 def is_kill_switch_active() -> Optional[Dict[str, Any]]:
@@ -31,17 +32,11 @@ def is_kill_switch_active() -> Optional[Dict[str, Any]]:
     if not KILL_SWITCH_FILE.exists():
         return None
     
-    try:
-        data = json.loads(KILL_SWITCH_FILE.read_text())
-        if bool(data.get("active", False)):
-            return data
-        return None
-    except (json.JSONDecodeError, KeyError) as e:
-        RF.print_log(f"Error reading kill switch file: {e}", "ERROR")
-        return None
-    except Exception as e:
-        RF.print_log(f"Unexpected error reading kill switch: {e}", "ERROR")
-        return None
+    # Use atomic read to prevent reading corrupted files
+    data = atomic_read_json(KILL_SWITCH_FILE, default=None)
+    if data and bool(data.get("active", False)):
+        return data
+    return None
 
 
 def activate_kill_switch(reason: str = "Manual activation", activated_by: str = "manual") -> bool:
@@ -55,8 +50,6 @@ def activate_kill_switch(reason: str = "Manual activation", activated_by: str = 
     Returns:
         True if activated successfully
     """
-    KILL_SWITCH_FILE.parent.mkdir(parents=True, exist_ok=True)
-    
     state = {
         "active": True,
         "reason": reason,
@@ -64,12 +57,13 @@ def activate_kill_switch(reason: str = "Manual activation", activated_by: str = 
         "activated_by": activated_by
     }
     
-    try:
-        KILL_SWITCH_FILE.write_text(json.dumps(state, indent=2))
+    # Use atomic write to prevent corruption
+    success = atomic_write_json(KILL_SWITCH_FILE, state, indent=2)
+    if success:
         RF.print_log(f"⛔ KILL SWITCH ACTIVATED: {reason}", "ERROR")
         return True
-    except Exception as e:
-        RF.print_log(f"Failed to activate kill switch: {e}", "ERROR")
+    else:
+        RF.print_log(f"Failed to activate kill switch: write failed", "ERROR")
         return False
 
 
@@ -80,17 +74,18 @@ def deactivate_kill_switch() -> bool:
     Returns:
         True if deactivated successfully
     """
-    try:
-        if KILL_SWITCH_FILE.exists():
-            KILL_SWITCH_FILE.unlink()
-            RF.print_log("✅ Kill switch deactivated", "SUCCESS")
-            return True
-        else:
+    # Use atomic delete to safely remove file
+    success = atomic_delete_file(KILL_SWITCH_FILE)
+    if success:
+        RF.print_log("✅ Kill switch deactivated", "SUCCESS")
+        return True
+    else:
+        if not KILL_SWITCH_FILE.exists():
             RF.print_log("Kill switch file does not exist", "INFO")
             return False
-    except Exception as e:
-        RF.print_log(f"Failed to deactivate kill switch: {e}", "ERROR")
-        return False
+        else:
+            RF.print_log("Failed to deactivate kill switch: delete failed", "ERROR")
+            return False
 
 
 def get_kill_switch_status() -> Dict[str, Any]:

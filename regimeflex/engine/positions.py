@@ -5,6 +5,7 @@ import json
 from typing import Dict
 
 from regimeflex.config.paths import POSITIONS_FILE as POS_PATH
+from regimeflex.utils.atomic_file import atomic_write_json, atomic_read_json
 
 @dataclass(frozen=True)
 class Position:
@@ -13,10 +14,11 @@ class Position:
 
 def load_positions() -> Dict[str, float]:
     """Return {SYMBOL: shares} from the local state file, or empty dict."""
-    if not POS_PATH.exists():
+    # Use atomic read to prevent reading corrupted files
+    data = atomic_read_json(POS_PATH, default={})
+    if not data:
         return {}
     try:
-        data = json.loads(POS_PATH.read_text())
         # normalize symbols to upper case floats
         return {str(k).upper(): float(v) for k, v in data.items()}
     except Exception:
@@ -24,10 +26,15 @@ def load_positions() -> Dict[str, float]:
         return {}
 
 def save_positions(positions: Dict[str, float]) -> None:
-    """Atomically write positions to disk."""
-    tmp = POS_PATH.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps({k.upper(): float(v) for k, v in positions.items()}, ensure_ascii=False, indent=2))
-    tmp.replace(POS_PATH)
+    """Atomically write positions to disk with file locking."""
+    # Normalize positions (upper case keys, float values)
+    normalized = {k.upper(): float(v) for k, v in positions.items()}
+    # Use atomic write utility (includes temp file + rename + locking)
+    success = atomic_write_json(POS_PATH, normalized, indent=2, ensure_ascii=False)
+    if not success:
+        # Log error but don't raise (caller should handle)
+        import sys
+        print(f"Warning: Failed to save positions to {POS_PATH}", file=sys.stderr)
 
 def set_position(symbol: str, shares: float) -> Dict[str, float]:
     """Convenience helper to update one symbol and persist."""
