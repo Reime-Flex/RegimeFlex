@@ -17,17 +17,35 @@ def load_environment(verbose: bool = True) -> bool:
     """
     Load .env file with robust path discovery.
     
+    If running on Railway (or similar platform), environment variables
+    are already set by the platform, so .env file is not needed.
+    
     Searches multiple locations for .env file:
-    1. Uses find_dotenv() to search parent directories automatically
-    2. Falls back to explicit paths if find_dotenv() fails
+    1. Checks if running on Railway (or similar) with pre-set env vars
+    2. Checks if essential env vars are already set (any platform)
+    3. Uses find_dotenv() to search parent directories automatically
+    4. Falls back to explicit paths if find_dotenv() fails
     
     Args:
         verbose: If True, prints success/failure messages
         
     Returns:
-        True if .env file was loaded, False otherwise
+        True if .env file was loaded or env vars are present, False otherwise
     """
-    # Strategy 1: Use find_dotenv() (searches parent directories)
+    # Strategy 0: Check if we're on Railway (or similar) with pre-set env vars
+    if os.getenv('RAILWAY_ENVIRONMENT') or os.getenv('RAILWAY_STATIC_URL'):
+        # Railway environment - env vars already set by platform
+        if verbose:
+            print("✓ Running on Railway - using platform environment variables")
+        return True
+    
+    # Strategy 1: Check if essential env vars are already set (any platform)
+    if os.getenv('ALPACA_KEY') or os.getenv('APCA_API_KEY_ID'):
+        if verbose:
+            print("✓ Environment variables already present (platform provided)")
+        return True
+    
+    # Strategy 2: Use find_dotenv() (searches parent directories)
     env_path = find_dotenv()
     if env_path:
         load_dotenv(env_path, override=True)
@@ -35,11 +53,12 @@ def load_environment(verbose: bool = True) -> bool:
             print(f"✓ Loaded .env from {env_path}")
         return True
     
-    # Strategy 2: Try explicit paths in order
+    # Strategy 3: Try explicit paths
     possible_paths = [
-        Path(__file__).parent.parent.parent / '.env',  # Project root (3 levels up)
-        Path.cwd() / '.env',  # Current working directory
-        Path.home() / 'RegimeFlex' / '.env',  # VPS common location
+        Path(__file__).parent.parent.parent / '.env',  # Project root
+        Path.cwd() / '.env',  # Current directory
+        Path('/app/.env'),  # Railway/Docker common path
+        Path.home() / 'RegimeFlex' / '.env',  # VPS default location
     ]
     
     for path in possible_paths:
@@ -49,13 +68,7 @@ def load_environment(verbose: bool = True) -> bool:
                 print(f"✓ Loaded .env from {path}")
             return True
     
-    # Strategy 3: Check if environment variables already present (PM2 loaded them)
-    if os.getenv('ALPACA_KEY') or os.getenv('APCA_API_KEY_ID'):
-        if verbose:
-            print("✓ Environment variables already present (PM2 or system loaded)")
-        return True
-    
-    # No .env found anywhere
+    # No .env found anywhere and no env vars set
     if verbose:
         print("⚠️  ERROR: No .env file found and no environment variables set!")
         print("Searched locations:")
