@@ -1,9 +1,11 @@
+'use client';
+
 import { StatusIndicator } from './components/StatusIndicator';
 import { DashboardHero } from './components/DashboardHero';
 import { useRegime } from './context/RegimeContext';
 
 export default function Home() {
-  const { regime, setRegime } = useRegime();
+  const { setRegime } = useRegime();
 
   return (
     <main className="flex min-h-screen flex-col items-center pt-24 pb-12 px-4 relative">

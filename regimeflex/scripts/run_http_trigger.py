@@ -63,7 +63,15 @@ def trigger_daily():
     if not flask.request.args and flask.request.method == "GET":
         # Simple health check - just return OK without running the full cycle
         return jsonify({"status": "ok", "health_check": True}), 200
-    
+
+    # Require token for actual trigger (security: prevent unauthorized trades)
+    expected_token = os.environ.get("TRIGGER_TOKEN")
+    provided_token = flask.request.args.get("token")
+
+    if expected_token and provided_token != expected_token:
+        RF.print_log("Unauthorized trigger attempt - invalid token", "SECURITY")
+        return jsonify({"status": "unauthorized", "error": "Invalid or missing token"}), 401
+
     if is_killed():
         RF.print_log("KILL-SWITCH active — refusing HTTP trigger", "RISK")
         return jsonify({"status": "killed"}), 423  # 423 = Locked

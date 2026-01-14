@@ -59,7 +59,8 @@ RegimeFlex is designed with explicit performance targets based on historical bac
 - **Data Processing**: pandas 2.0+, numpy 1.24+ (time-series analysis, technical indicators)
 - **Market Data**: Polygon.io (primary), Alpaca Markets (fallback)
 - **Brokerage**: Alpaca Markets API (paper & live trading)
-- **Process Management**: PM2 (ecosystem-based process monitoring)
+- **Process Management**: Docker Compose + systemd (production), PM2 (legacy)
+- **Deployment**: Docker containers with health checks and auto-restart
 - **Notifications**: Telegram Bot API, Discord Webhooks (optional)
 - **Configuration**: YAML-based (PyYAML 6.0+)
 
@@ -254,7 +255,40 @@ morning_rush:
 
 ---
 
-## Quick Start
+## Production Deployment
+
+**🚀 Ready for Production**: RegimeFlex includes a complete production deployment system for DigitalOcean droplets.
+
+### Quick Deploy
+
+```bash
+# 1. Initial server setup (one time)
+scp setup-droplet.sh root@YOUR_DROPLET_IP:/tmp/
+ssh root@YOUR_DROPLET_IP
+bash /tmp/setup-droplet.sh
+
+# 2. Deploy application
+./deploy.sh YOUR_DROPLET_IP regimeflex
+
+# 3. Configure Nginx and SSL
+# See DEPLOYMENT.md for complete instructions
+```
+
+### Features
+
+- ✅ **Automatic startup** on reboot (systemd)
+- ✅ **Health monitoring** with `/health` endpoints
+- ✅ **Zero-downtime updates** with automatic backups
+- ✅ **TLS/SSL** with Let's Encrypt
+- ✅ **Reverse proxy** (Nginx) with security headers
+- ✅ **One-command deploy** and rollback
+- ✅ **Structured logging** and observability
+
+**Full Documentation**: See **[DEPLOYMENT.md](DEPLOYMENT.md)** for complete deployment guide, troubleshooting, and operations manual.
+
+---
+
+## Quick Start (Development)
 
 ### Prerequisites
 
@@ -342,7 +376,7 @@ python -m regimeflex.scripts.next_run
 python -m regimeflex.scripts.reconcile_positions
 ```
 
-**PM2 Production Deployment**:
+**PM2 Production Deployment** (Legacy):
 ```bash
 # Install package (recommended for production)
 pip install -e .
@@ -352,6 +386,60 @@ pm2 start ecosystem.config.js
 
 # Or use module execution directly
 pm2 start ecosystem.config.js --update-env
+```
+
+**🐳 Docker Compose Production Deployment** (Recommended):
+```bash
+# One-command deployment to DigitalOcean droplet
+./deploy.sh YOUR_DROPLET_IP regimeflex
+
+# See DEPLOYMENT.md for complete guide
+```
+
+For production deployment with automatic restarts, health monitoring, TLS, and zero-downtime updates, see **[DEPLOYMENT.md](DEPLOYMENT.md)**.
+
+### Web Dashboard (Next.js)
+
+The project includes a modern web dashboard for monitoring regime status and system health:
+
+```bash
+# Navigate to web directory
+cd web
+
+# Install dependencies
+npm install
+
+# Copy environment template
+cp .env.example .env.local
+
+# Start development server
+npm run dev
+```
+
+The dashboard will be available at `http://localhost:3000`.
+
+**Features**:
+- Real-time regime status (BULL/BEAR/NEUTRAL) with visual indicators
+- QQQ/TQQQ/SQQQ price display
+- Position count and status
+- System connection status
+- No-op reason banners when trading is paused
+
+**Run Both Backend + Frontend**:
+```bash
+# Terminal 1: Start Python backend
+source .venv/bin/activate
+python -m regimeflex http
+
+# Terminal 2: Start web dashboard
+cd web && npm run dev
+```
+
+Or use PM2 to run both:
+```bash
+pm2 start ecosystem.config.js
+# Backend: http://localhost:8080
+# Frontend: http://localhost:3000
 ```
 
 ---
@@ -428,10 +516,34 @@ RegimeFlex/
 │   ├── scripts/             # CLI tools & utilities (60+ scripts)
 │   ├── docs/                # Comprehensive documentation
 │   └── tests/               # Unit tests
+├── web/                     # Next.js web dashboard
+│   ├── app/                 # App Router pages & components
+│   │   ├── api/regime/      # API route (proxies to Python backend)
+│   │   ├── api/health/      # Health check endpoint
+│   │   ├── components/      # React components
+│   │   └── context/         # React context providers
+│   ├── Dockerfile           # Frontend container definition
+│   └── package.json         # Node.js dependencies
 ├── data/                    # Local state & cache (gitignored)
 ├── logs/                    # Audit logs & incidents (gitignored)
+├── replays/                 # Trading replay snapshots
 ├── reports/                 # Generated HTML reports (gitignored)
+├── nginx/                   # Nginx reverse proxy configuration
+│   └── regimeflex.conf      # Production Nginx config with TLS
+├── systemd/                 # System service definitions
+│   └── regimeflex.service   # Auto-start systemd service
+├── Dockerfile.backend       # Backend container definition
+├── docker-compose.yml       # Multi-service orchestration
+├── deploy.sh                # One-command deployment script
+├── rollback.sh              # Rollback to previous version
+├── setup-droplet.sh         # Initial server setup
+├── validate-deployment.sh   # Pre-deployment validation
+├── DEPLOYMENT.md            # Complete deployment guide
+├── QUICK_START.md           # Quick deployment reference
+├── DROPLET_COMMANDS.md      # Exact commands for droplet
+├── ecosystem.config.js      # PM2 process management (legacy)
 ├── .env.example             # Environment template
+├── .dockerignore            # Docker build exclusions
 ├── requirements.txt         # Python dependencies
 └── README.md               # This file
 ```
@@ -440,10 +552,16 @@ RegimeFlex/
 
 ## Documentation
 
-Comprehensive documentation is available in `regimeflex/docs/`:
+### Production Deployment
+
+- **[DEPLOYMENT.md](DEPLOYMENT.md)** - Complete production deployment guide (DigitalOcean, Docker, Nginx, TLS)
+- **[QUICK_START.md](QUICK_START.md)** - Quick deployment reference
+- **[DROPLET_COMMANDS.md](DROPLET_COMMANDS.md)** - Exact commands for droplet setup
+- **[DEPLOYMENT_SUMMARY.md](DEPLOYMENT_SUMMARY.md)** - Deployment architecture and implementation details
+
+### System Architecture
 
 - **[ARCHITECTURE.md](regimeflex/docs/ARCHITECTURE.md)** - System design and component overview
-- **[DEPLOYMENT.md](regimeflex/docs/DEPLOYMENT.md)** - Production deployment guide
 - **[EXECUTIONER.md](regimeflex/docs/EXECUTIONER.md)** - Execution safeguards and order management
 - **[GUARDIAN.md](regimeflex/docs/GUARDIAN.md)** - Process monitoring and alerting
 - **[PREFLIGHT_AUDIT.md](regimeflex/docs/PREFLIGHT_AUDIT.md)** - Security and risk audit report

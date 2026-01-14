@@ -3,7 +3,6 @@
 import React from 'react';
 import { useRegime } from '../context/RegimeContext';
 import { motion } from 'framer-motion';
-import { clsx } from 'clsx';
 
 export const RegimeBackground = () => {
     const { regime } = useRegime();
