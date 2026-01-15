@@ -360,7 +360,7 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         block_full = bool(ms.get("block_full_holidays", True))
         block_half = bool(ms.get("block_half_days", True))
 
-        sess, note = session_status()  # "FULL" | "NO_SESSION" | "HALF_DAY"
+        sess, note = session_status(root=PROJECT_ROOT)  # "FULL" | "NO_SESSION" | "HALF_DAY"
     
         # Initialize crumbs early for session guard
         crumbs = {
