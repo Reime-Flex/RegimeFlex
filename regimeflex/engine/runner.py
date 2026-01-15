@@ -59,7 +59,7 @@ from regimeflex.engine.replay import write_replay_bundle
 from regimeflex.engine.risk import RiskConfig
 from regimeflex.engine.config_echo import collect_config_echo
 from regimeflex.engine.sanity import check_mutual_exclusive, clamp_smaller_side
-from regimeflex.engine.drift import compute_position_drift
+from regimeflex.engine.drift import compute_position_drift, compute_position_drift_with_alerts, DriftConfig, DriftAlert
 from regimeflex.engine.kill_switch import evaluate_kill_switch
 from regimeflex.engine.anomaly import detect_anomalies
 from regimeflex.engine.price_source_check import check_price_source
@@ -188,6 +188,41 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
     
     # Wrap main execution in try/finally to ensure lock is always released
     try:
+        # Phase 2: Fill Reconciliation on Startup
+        # Query broker for today's fills and sync positions before trading
+        try:
+            from regimeflex.engine.fill_reconciliation import FillReconciler
+            reconciler = FillReconciler()
+            recon_result = reconciler.reconcile_on_startup()
+
+            if recon_result.status == "DISCREPANCY_ALERT":
+                RF.print_log(f"RECONCILIATION ALERT: {recon_result.alerts}", "ERROR")
+                # Send Telegram alert if configured
+                try:
+                    from regimeflex.engine.telemetry import Notifier, TGCreds
+                    from regimeflex.config.api_keys import APIKeys
+                    tg_token = APIKeys.telegram_token()
+                    tg_chat = APIKeys.telegram_chat_id()
+                    if tg_token and tg_chat:
+                        notifier = Notifier(TGCreds(token=tg_token, chat_id=tg_chat))
+                        notifier.send(f"[ALERT] Fill reconciliation issues: {recon_result.alerts}")
+                except Exception as tg_err:
+                    RF.print_log(f"Failed to send Telegram alert: {tg_err}", "RISK")
+            elif recon_result.status == "ADJUSTED":
+                RF.print_log(f"Reconciliation adjusted {len(recon_result.adjustments)} items", "INFO")
+
+            reconciliation_meta = {
+                "status": recon_result.status,
+                "adjustments": len(recon_result.adjustments),
+                "alerts": recon_result.alerts[:5] if recon_result.alerts else [],  # Limit to first 5
+            }
+        except ImportError:
+            RF.print_log("Fill reconciliation module not available, skipping", "RISK")
+            reconciliation_meta = {"status": "SKIPPED", "reason": "module_not_available"}
+        except Exception as recon_err:
+            RF.print_log(f"Fill reconciliation error: {recon_err}", "ERROR")
+            reconciliation_meta = {"status": "ERROR", "error": str(recon_err)}
+
         # Initialize incident logger
         incidents = IncidentLogger(root=PROJECT_ROOT)
         
@@ -880,26 +915,76 @@ def run_daily_offline(equity: float, vix: float, minutes_to_close: int, min_trad
         check_syms = [s.upper() for s in (drc.get("symbols") or [LONG, SHORT])]
         shares_eps = float(drc.get("shares_eps", 1.0))
         notional_eps = float(drc.get("notional_eps", 200.0))
-    
-        # If you have a broker snapshot, set it here; otherwise keep None.
-        broker_snapshot = None  # hook: replace with real positions when available
-    
-        if drift_enabled:
+
+        # Phase 3: Always fetch broker positions for drift detection
+        broker_snapshot = None
+        try:
+            from regimeflex.engine.exec_alpaca import get_broker_positions
+            broker_snapshot = get_broker_positions()
+            RF.print_log(f"Broker positions fetched: {broker_snapshot}", "INFO")
+        except Exception as bp_err:
+            RF.print_log(f"Failed to fetch broker positions: {bp_err}", "RISK")
+
+        if drift_enabled and broker_snapshot:
+            # Use enhanced drift detection with tiered alerts
+            drift_config = DriftConfig.from_dict(drc)
+            has_critical, drift_alerts = compute_position_drift_with_alerts(
+                local_pos=positions_before,
+                broker_pos=broker_snapshot,
+                prices=last_prices_map,
+                config=drift_config
+            )
+
+            # Log alerts
+            for alert in drift_alerts:
+                if alert.severity == "CRITICAL":
+                    RF.print_log(f"DRIFT CRITICAL: {alert.symbol} local={alert.local_qty} broker={alert.broker_qty} drift=${alert.drift_notional}", "ERROR")
+                elif alert.severity == "WARNING":
+                    RF.print_log(f"DRIFT WARNING: {alert.symbol} local={alert.local_qty} broker={alert.broker_qty} drift=${alert.drift_notional}", "RISK")
+                else:
+                    RF.print_log(f"DRIFT INFO: {alert.symbol} drift=${alert.drift_notional}", "INFO")
+
+            # Send Telegram alert for critical drift
+            if has_critical:
+                try:
+                    from regimeflex.config.api_keys import APIKeys
+                    tg_token = APIKeys.telegram_token()
+                    tg_chat = APIKeys.telegram_chat_id()
+                    if tg_token and tg_chat:
+                        notifier = Notifier(TGCreds(token=tg_token, chat_id=tg_chat))
+                        critical_alerts = [a for a in drift_alerts if a.severity == "CRITICAL"]
+                        notifier.send(f"[CRITICAL DRIFT] {len(critical_alerts)} position(s) with critical drift detected")
+                except Exception as tg_err:
+                    RF.print_log(f"Failed to send drift Telegram alert: {tg_err}", "RISK")
+
+            # Optionally block trading on critical drift
+            if has_critical and drift_config.block_on_critical:
+                RF.print_log("BLOCKING TRADING DUE TO CRITICAL DRIFT", "ERROR")
+                noop_reason = "DRIFT_CRITICAL"
+
+            crumbs.update({
+                "drift_note": "broker_sync",
+                "drift_warn": has_critical or any(a.severity == "WARNING" for a in drift_alerts),
+                "drift_alerts": [a.to_dict() for a in drift_alerts[:5]],  # Limit to first 5
+                "drift_has_critical": has_critical,
+            })
+        elif drift_enabled:
+            # Fallback to legacy drift detection if broker snapshot not available
             drift_warn, drift_map, drift_note = compute_position_drift(
-            local_pos=positions_before, broker_pos=broker_snapshot, prices=last_prices_map,
-            symbols=check_syms, shares_eps=shares_eps, notional_eps=notional_eps
-        )
-        crumbs.update({
-            "drift_note": drift_note,
-            "drift_warn": bool(drift_warn),
-            "drift_detail": drift_map if drift_map else {},
-        })
-        if drift_note == "no_broker_snapshot":
-            RF.print_log("Drift check: no broker snapshot; skipping.", "INFO")
-        elif drift_warn:
-            RF.print_log(f"Drift WARN: {drift_map}", "RISK")
-        else:
-            RF.print_log("Drift OK", "INFO")
+                local_pos=positions_before, broker_pos=broker_snapshot, prices=last_prices_map,
+                symbols=check_syms, shares_eps=shares_eps, notional_eps=notional_eps
+            )
+            crumbs.update({
+                "drift_note": drift_note,
+                "drift_warn": bool(drift_warn),
+                "drift_detail": drift_map if drift_map else {},
+            })
+            if drift_note == "no_broker_snapshot":
+                RF.print_log("Drift check: no broker snapshot; skipping.", "INFO")
+            elif drift_warn:
+                RF.print_log(f"Drift WARN: {drift_map}", "RISK")
+            else:
+                RF.print_log("Drift OK", "INFO")
     
         # Check data staleness
         from datetime import datetime, timezone

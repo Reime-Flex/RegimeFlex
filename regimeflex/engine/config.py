@@ -11,11 +11,19 @@ class Config:
         self._run = None  # NEW
 
     def _load_yaml(self, rel_path: str):
+        # Try primary path first
         p = self.root / rel_path
-        if not p.exists():
-            raise FileNotFoundError(f"Missing config: {rel_path}")
-        with p.open("r") as f:
-            return yaml.safe_load(f) or {}
+        if p.exists():
+            with p.open("r") as f:
+                return yaml.safe_load(f) or {}
+
+        # Fallback: try regimeflex/ prefix (for Docker deployments)
+        alt_path = self.root / "regimeflex" / rel_path
+        if alt_path.exists():
+            with alt_path.open("r") as f:
+                return yaml.safe_load(f) or {}
+
+        raise FileNotFoundError(f"Missing config: {rel_path}")
 
     @property
     def strategies(self):

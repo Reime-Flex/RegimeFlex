@@ -12,7 +12,7 @@ from regimeflex.config.paths import ORDER_WAL_FILE as WAL_FILE
 class WALEntry:
     id: str
     timestamp: str
-    phase: str  # "INTENT" | "SUBMITTED" | "ACKNOWLEDGED" | "FILLED" | "ROLLED_BACK"
+    phase: str  # "INTENT" | "SUBMITTED" | "ACKNOWLEDGED" | "FILLED" | "FAILED" | "ROLLED_BACK"
     symbol: str
     side: str
     qty: float
@@ -80,6 +80,54 @@ def log_filled(intent_id: str, filled_qty: float, fill_price: float) -> None:
         qty=filled_qty,
         details={"fill_price": fill_price}
     ))
+
+
+def log_failed(intent_id: str, error: str, symbol: str = "", side: str = "", qty: float = 0) -> None:
+    """Log order failure (rejected by broker or validation)."""
+    _append_wal(WALEntry(
+        id=intent_id,
+        timestamp=datetime.now(timezone.utc).isoformat(),
+        phase="FAILED",
+        symbol=symbol,
+        side=side,
+        qty=qty,
+        details={"error": error}
+    ))
+
+
+def log_rolled_back(intent_id: str, reason: str) -> None:
+    """Log rollback of a failed transaction."""
+    _append_wal(WALEntry(
+        id=intent_id,
+        timestamp=datetime.now(timezone.utc).isoformat(),
+        phase="ROLLED_BACK",
+        symbol="",
+        side="",
+        qty=0,
+        details={"rollback_reason": reason}
+    ))
+
+
+def get_orders_by_phase(phase: str) -> List[WALEntry]:
+    """Get all orders currently in a specific phase."""
+    if not WAL_FILE.exists():
+        return []
+
+    # Track latest phase for each order ID
+    entries: Dict[str, WALEntry] = {}
+    with WAL_FILE.open("r", encoding="utf-8") as f:
+        for line in f:
+            if not line.strip():
+                continue
+            try:
+                data = json.loads(line)
+                entry = WALEntry(**data)
+                entries[entry.id] = entry
+            except Exception:
+                continue
+
+    # Filter to only those in the requested phase
+    return [e for e in entries.values() if e.phase == phase]
 
 
 def get_pending_orders() -> List[WALEntry]:

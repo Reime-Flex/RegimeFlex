@@ -56,20 +56,27 @@ class AlpacaExecutor:
             "Content-Type": "application/json"
         }
 
-    def place_orders(self, intents: List[OrderIntent], mid_prices: Optional[Dict[str, float]] = None) -> List[Dict[str, Any]]:
+    def place_orders(
+        self,
+        intents: List[OrderIntent],
+        mid_prices: Optional[Dict[str, float]] = None,
+        use_transactions: bool = True
+    ) -> List[Dict[str, Any]]:
         """
         If dry_run: just format and print payloads.
         Else: POST to /v2/orders for each intent. Returns list of results (payload or API response).
-        
+
         Safety features:
         - Stale data check (validated before calling this)
         - Slippage protection (converts market orders to limit with 0.05% buffer)
         - Duplicate trade prevention (SafetyWrapper lock)
         - Circuit Breaker (Guardian module)
-        
+        - Transactional WAL logging (automatic rollback on failure)
+
         Args:
             intents: List of order intents to execute
             mid_prices: Optional dict of {symbol: mid_price} for slippage protection
+            use_transactions: If True, wrap each order in WAL transaction (default: True)
         """
         # 1. Import Safety Wrapper
         try:
@@ -77,6 +84,15 @@ class AlpacaExecutor:
             safety = SafetyWrapper()
         except ImportError:
             safety = None
+
+        # 2. Import Transaction Manager for WAL logging
+        txn_manager = None
+        if use_transactions:
+            try:
+                from regimeflex.engine.order_transaction import TransactionalOrderManager
+                txn_manager = TransactionalOrderManager()
+            except ImportError:
+                RF.print_log("TransactionalOrderManager not available, proceeding without WAL transactions", "RISK")
 
         payloads = self.build_payloads(intents)
         
@@ -159,7 +175,7 @@ class AlpacaExecutor:
             breaker = MockBreaker()
             CircuitBreakerError = Exception
 
-        for idx, p in enumerate(payloads):
+        for idx, (intent, p) in enumerate(zip(intents, payloads)):
             # Shield: Apply slippage protection if mid_price available
             if safety and mid_prices:
                 symbol = p.get("symbol", "").upper()
@@ -167,12 +183,13 @@ class AlpacaExecutor:
                 if mid_price and mid_price > 0:
                     protected_p = safety.protect_order(p.copy(), mid_price)
                     payloads[idx] = protected_p  # Update payload in place
+                    p = protected_p  # Use protected payload
                     RF.print_log(
-                        f"🛡️ Slippage protection: {symbol} {p.get('side')} "
-                        f"{p.get('type')} → {protected_p.get('type')} @ ${protected_p.get('limit_price', 'N/A')}",
+                        f"Slippage protection: {symbol} {p.get('side')} "
+                        f"{p.get('type')} -> {protected_p.get('type')} @ ${protected_p.get('limit_price', 'N/A')}",
                         "INFO"
                     )
-            
+
             # Shield: Wrap with duplicate prevention lock
             if safety:
                 lock_ctx = safety.order_lock(
@@ -185,99 +202,127 @@ class AlpacaExecutor:
                 from contextlib import nullcontext
                 lock_ctx = nullcontext()
 
+            # Helper function to execute the order (with or without transaction)
+            def _execute_order_impl(txn=None):
+                RF.print_log(f"[LIVE] POST {url} -> {p}", "INFO")
+
+                # Execute via circuit breaker
+                def _do_post():
+                    return requests.post(url, json=p, headers=headers, timeout=30)
+
+                r = breaker.execute(_do_post)
+
+                # Handle specific HTTP status codes
+                if r.status_code == 429:
+                    retry_after = r.headers.get("Retry-After", "60")
+                    RF.print_log(
+                        f"Alpaca rate limit (429), retry after {retry_after}s. Order skipped: {p.get('symbol')} {p.get('side')}",
+                        "RISK"
+                    )
+                    error_result = {
+                        "error": "Rate Limit",
+                        "retry_after": retry_after,
+                        "status": 429,
+                        "request": p,
+                        "may_retry": True
+                    }
+                    if txn:
+                        from regimeflex.engine.order_wal import log_failed
+                        log_failed(txn.intent_id, "Rate Limit 429", p.get("symbol", ""), p.get("side", ""), p.get("qty", 0))
+                    return error_result, False
+
+                elif r.status_code in (500, 502, 503, 504):
+                    RF.print_log(
+                        f"Alpaca server error ({r.status_code}), order may be queued: {p.get('symbol')} {p.get('side')}",
+                        "RISK"
+                    )
+                    error_result = {
+                        "error": f"Server Error {r.status_code}",
+                        "status": r.status_code,
+                        "request": p,
+                        "may_retry": True,
+                        "response_text": r.text[:200]
+                    }
+                    # Don't mark as failed - order may have been queued
+                    return error_result, False
+
+                elif r.status_code in (401, 403):
+                    RF.print_log(
+                        f"Alpaca authentication error ({r.status_code}): {r.text[:200]}",
+                        "ERROR"
+                    )
+                    error_result = {
+                        "error": f"Authentication Error {r.status_code}",
+                        "status": r.status_code,
+                        "request": p,
+                        "may_retry": False,
+                        "response_text": r.text[:200]
+                    }
+                    if txn:
+                        from regimeflex.engine.order_wal import log_failed
+                        log_failed(txn.intent_id, f"Auth Error {r.status_code}", p.get("symbol", ""), p.get("side", ""), p.get("qty", 0))
+                    return error_result, False
+
+                elif r.status_code >= 300:
+                    RF.print_log(
+                        f"Alpaca order error {r.status_code}: {r.text[:200]}",
+                        "ERROR"
+                    )
+                    error_result = {
+                        "error": r.text[:200],
+                        "status": r.status_code,
+                        "request": p,
+                        "may_retry": False
+                    }
+                    if txn:
+                        from regimeflex.engine.order_wal import log_failed
+                        log_failed(txn.intent_id, f"Error {r.status_code}: {r.text[:100]}", p.get("symbol", ""), p.get("side", ""), p.get("qty", 0))
+                    return error_result, False
+                else:
+                    # Success (2xx)
+                    resp = r.json()
+                    RF.print_log(
+                        f"[LIVE] Accepted order id={resp.get('id','?')} status={resp.get('status','?')}",
+                        "SUCCESS"
+                    )
+
+                    # Update transaction with broker response
+                    if txn:
+                        broker_id = resp.get("id", "")
+                        if broker_id:
+                            txn.mark_submitted(broker_id)
+                        txn.mark_acknowledged(resp)
+
+                    # Record live fill
+                    status = str(resp.get("status") or resp.get("response", "")).lower()
+                    filled = resp.get("filled_qty") or resp.get("filled_qty_amount") or resp.get("request", {}).get("qty_filled")
+                    append_fill_record(
+                        symbol=p.get("symbol", ""),
+                        side=p.get("side", ""),
+                        qty=p.get("qty", 0.0),
+                        status=status,
+                        filled_qty=filled,
+                        broker_id=resp.get("id")
+                    )
+
+                    return resp, True
+
             try:
                 with lock_ctx:
-                    RF.print_log(f"[LIVE] POST {url} → {p}", "INFO")
-                    
-                    # Execute via circuit breaker
-                    def _do_post():
-                        return requests.post(url, json=p, headers=headers, timeout=30)
-                    
-                    r = breaker.execute(_do_post)
-                    
-                    # Priority 2: Enhanced Alpaca Error Handling
-                    # Handle specific HTTP status codes with appropriate actions
-                    if r.status_code == 429:
-                        # Rate limit - log and skip this order, retry next cycle
-                        retry_after = r.headers.get("Retry-After", "60")
-                        RF.print_log(
-                            f"⏸️ Alpaca rate limit (429), retry after {retry_after}s. Order skipped: {p.get('symbol')} {p.get('side')}",
-                            "RISK"
-                        )
-                        results.append({
-                            "error": "Rate Limit",
-                            "retry_after": retry_after,
-                            "status": 429,
-                            "request": p,
-                            "may_retry": True
-                        })
-                        continue  # Skip this order, continue with next
-                    
-                    elif r.status_code in (500, 502, 503, 504):
-                        # Server error - order may be queued, log but don't retry immediately
-                        RF.print_log(
-                            f"⚠️ Alpaca server error ({r.status_code}), order may be queued: {p.get('symbol')} {p.get('side')}",
-                            "RISK"
-                        )
-                        results.append({
-                            "error": f"Server Error {r.status_code}",
-                            "status": r.status_code,
-                            "request": p,
-                            "may_retry": True,
-                            "response_text": r.text[:200]  # Truncate long responses
-                        })
-                        continue  # Skip this order
-                    
-                    elif r.status_code in (401, 403):
-                        # Auth error - don't retry, fail immediately
-                        RF.print_log(
-                            f"🚨 Alpaca authentication error ({r.status_code}): {r.text[:200]}",
-                            "ERROR"
-                        )
-                        results.append({
-                            "error": f"Authentication Error {r.status_code}",
-                            "status": r.status_code,
-                            "request": p,
-                            "may_retry": False,
-                            "response_text": r.text[:200]
-                        })
-                        continue  # Skip this order
-                    
-                    elif r.status_code >= 300:
-                        # Other client errors (400, 404, etc.)
-                        RF.print_log(
-                            f"Alpaca order error {r.status_code}: {r.text[:200]}",
-                            "ERROR"
-                        )
-                        results.append({
-                            "error": r.text[:200],
-                            "status": r.status_code,
-                            "request": p,
-                            "may_retry": False
-                        })
+                    # Execute with or without transaction context
+                    if txn_manager:
+                        with txn_manager.transaction(intent) as txn:
+                            result, success = _execute_order_impl(txn)
+                            results.append(result)
+                            if not success:
+                                # Don't raise - just continue to next order
+                                pass
                     else:
-                        # Success (2xx)
-                        resp = r.json()
-                        results.append(resp)
-                        RF.print_log(
-                            f"[LIVE] Accepted order id={resp.get('id','?')} status={resp.get('status','?')}",
-                            "SUCCESS"
-                        )
-                        
-                        # Record live fill
-                        status = str(resp.get("status") or resp.get("response","")).lower()
-                        filled = resp.get("filled_qty") or resp.get("filled_qty_amount") or resp.get("request",{}).get("qty_filled")
-                        append_fill_record(
-                            symbol=p.get("symbol", ""),
-                            side=p.get("side", ""),
-                            qty=p.get("qty", 0.0),
-                            status=status,
-                            filled_qty=filled,
-                            broker_id=resp.get("id")
-                        )
-            
+                        result, success = _execute_order_impl(None)
+                        results.append(result)
+
             except OrderLockError as e:
-                RF.print_log(f"⛔ DUPLICATE PREVENTED: {e}", "ERROR")
+                RF.print_log(f"DUPLICATE PREVENTED: {e}", "ERROR")
                 results.append({"error": "Duplicate Order Blocked", "details": str(e), "request": p, "blocked": True})
             except CircuitBreakerError as e:
                 RF.print_log(f"Alpaca circuit open: {e}", "RISK")

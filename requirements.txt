@@ -25,6 +25,9 @@ matplotlib>=3.5.0
 # Web Framework (for health endpoints)
 flask>=2.3.0
 
+# WebSocket (for real-time streaming)
+websockets>=12.0
+
 # Logging & Terminal Output
 colorama>=0.4.0
 

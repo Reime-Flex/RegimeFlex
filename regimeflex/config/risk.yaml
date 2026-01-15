@@ -41,9 +41,19 @@ sanity:
 
 drift:
   enabled: true
+  symbols: ["TQQQ","SQQQ"]   # which symbols to monitor for drift
+  # Legacy thresholds (for backward compatibility)
   shares_eps: 1.0          # warn if |Δshares| > 1 share
   notional_eps: 200.0      # OR if |Δnotional| > $200 (using common-date prices)
-  symbols: ["QQQ","PSQ"]   # empty = check all execution symbols
+  # Tiered alerting thresholds
+  info_shares: 0.5         # INFO if drift > 0.5 shares
+  warn_shares: 5.0         # WARNING if drift > 5 shares
+  crit_shares: 50.0        # CRITICAL if drift > 50 shares
+  info_notional: 50.0      # INFO if drift > $50
+  warn_notional: 500.0     # WARNING if drift > $500
+  crit_notional: 5000.0    # CRITICAL if drift > $5000
+  # Actions
+  block_on_critical: false # if true, block trading when CRITICAL drift detected
 
 rounding:
   enabled: true
