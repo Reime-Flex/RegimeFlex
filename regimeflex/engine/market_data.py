@@ -239,8 +239,15 @@ def fetch_intraday_bars(
             "feed": "iex",  # Use IEX for free tier
         }
 
+        # For daily bars, default to 1 year of history if no start provided
+        # This ensures we have enough data for SMA 200 calculations
         if start:
             params["start"] = start
+        elif timeframe == "1Day" and limit >= 50:
+            # Go back ~14 months to ensure 200+ trading days
+            default_start = datetime.now(timezone.utc) - timedelta(days=420)
+            params["start"] = default_start.strftime("%Y-%m-%d")
+
         if end:
             params["end"] = end
 
